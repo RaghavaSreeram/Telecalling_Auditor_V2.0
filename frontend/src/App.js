@@ -8,6 +8,7 @@ import Scripts from "./pages/Scripts";
 import UploadAudio from "./pages/UploadAudio";
 import AuditResults from "./pages/AuditResults";
 import AuditDetail from "./pages/AuditDetail";
+import ManagerDashboard from "./pages/ManagerDashboard";
 import Layout from "./components/Layout";
 import { Toaster } from "./components/ui/sonner";
 
