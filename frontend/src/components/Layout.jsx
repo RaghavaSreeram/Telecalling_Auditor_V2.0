@@ -1,6 +1,6 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "./ui/button";
-import { PhoneCall, LogOut, LayoutDashboard, FileText, Upload, FileAudio } from "lucide-react";
+import { PhoneCall, LogOut, LayoutDashboard, FileText, Upload, FileAudio, BarChart2 } from "lucide-react";
 
 export default function Layout({ setIsAuthenticated }) {
   const navigate = useNavigate();
