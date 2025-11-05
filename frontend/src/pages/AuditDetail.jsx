@@ -85,7 +85,7 @@ export default function AuditDetail() {
       </div>
 
       {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
         <Card className={`border-2 ${getScoreBackground(audit.overall_score)}`}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">Overall Score</CardTitle>
@@ -121,6 +121,21 @@ export default function AuditDetail() {
 
         <Card>
           <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Sentiment</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Badge className={`text-sm mt-2 ${
+              analysis.sentiment === 'positive' ? 'bg-green-100 text-green-700' :
+              analysis.sentiment === 'negative' ? 'bg-red-100 text-red-700' :
+              'bg-gray-100 text-gray-700'
+            }`}>
+              {analysis.sentiment?.toUpperCase()}
+            </Badge>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">Lead Status</CardTitle>
           </CardHeader>
           <CardContent>
@@ -133,6 +148,44 @@ export default function AuditDetail() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Performance Metrics */}
+      {analysis.performance_metrics && (
+        <Card className="mb-6 border-2 border-blue-200">
+          <CardHeader className="bg-blue-50">
+            <CardTitle>Performance Metrics</CardTitle>
+            <CardDescription>Key performance indicators for this call</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center p-4 bg-white rounded-lg border">
+                <p className="text-sm text-gray-600 mb-1">Script Followed</p>
+                <p className={`font-bold text-2xl ${analysis.script_followed ? 'text-green-600' : 'text-red-600'}`}>
+                  {analysis.script_followed ? '✓ Yes' : '✗ No'}
+                </p>
+              </div>
+              <div className="text-center p-4 bg-white rounded-lg border">
+                <p className="text-sm text-gray-600 mb-1">Lead Qualified</p>
+                <p className={`font-bold text-2xl ${analysis.lead_qualified ? 'text-green-600' : 'text-red-600'}`}>
+                  {analysis.lead_qualified ? '✓ Yes' : '✗ No'}
+                </p>
+              </div>
+              <div className="text-center p-4 bg-white rounded-lg border">
+                <p className="text-sm text-gray-600 mb-1">Site Visit Confirmed</p>
+                <p className={`font-bold text-2xl ${analysis.site_visit_confirmed ? 'text-green-600' : 'text-red-600'}`}>
+                  {analysis.site_visit_confirmed ? '✓ Yes' : '✗ No'}
+                </p>
+              </div>
+              <div className="text-center p-4 bg-white rounded-lg border">
+                <p className="text-sm text-gray-600 mb-1">Call Duration</p>
+                <p className="font-bold text-2xl text-blue-600">
+                  {analysis.call_duration_seconds ? `${Math.floor(analysis.call_duration_seconds / 60)}m ${analysis.call_duration_seconds % 60}s` : 'N/A'}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Call Information */}
       <Card className="mb-6">
