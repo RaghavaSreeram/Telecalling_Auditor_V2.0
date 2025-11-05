@@ -529,7 +529,15 @@ async def upload_audio(
     if isinstance(script_obj.updated_at, str):
         script_obj.updated_at = datetime.fromisoformat(script_obj.updated_at)
     
-    background_tasks.add_task(process_audio_audit, audit.id, str(audio_path), script_obj)
+    background_tasks.add_task(
+        process_audio_audit, 
+        audit.id, 
+        str(audio_path), 
+        script_obj,
+        agent_number,
+        customer_number,
+        audit.call_date
+    )
     
     return {"audit_id": audit.id, "message": "Audio uploaded successfully. Processing started."}
 
