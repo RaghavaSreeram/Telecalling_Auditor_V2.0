@@ -598,6 +598,27 @@ async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
         "average_score": round(avg_score, 2)
     }
 
+# Manager Dashboard Analytics Routes
+@api_router.get("/manager/analytics/overview")
+async def get_manager_overview(current_user: User = Depends(get_current_user)):
+    from analytics import get_overall_analytics
+    return await get_overall_analytics(db)
+
+@api_router.get("/manager/analytics/agents")
+async def get_agent_performance(agent_id: str = None, current_user: User = Depends(get_current_user)):
+    from analytics import calculate_agent_performance
+    return await calculate_agent_performance(db, agent_id)
+
+@api_router.get("/manager/analytics/sentiment")
+async def get_sentiment_analysis(current_user: User = Depends(get_current_user)):
+    from analytics import get_sentiment_trends
+    return await get_sentiment_trends(db)
+
+@api_router.get("/manager/analytics/leadership-insights")
+async def get_leadership_dashboard(current_user: User = Depends(get_current_user)):
+    from analytics import get_leadership_insights
+    return await get_leadership_insights(db)
+
 # Include router
 app.include_router(api_router)
 
