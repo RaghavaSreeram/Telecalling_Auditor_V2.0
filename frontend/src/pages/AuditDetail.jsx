@@ -161,13 +161,58 @@ export default function AuditDetail() {
         </CardContent>
       </Card>
 
+      {/* Script Details - Expected Outcomes */}
+      {audit.script_details && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Target className="w-5 h-5 mr-2 text-blue-600" />
+              Expected Script & Outcomes
+            </CardTitle>
+            <CardDescription>The telecalling script used for this audit</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <h4 className="font-semibold text-gray-900 mb-2">Script: {audit.script_details.title}</h4>
+              <Badge variant="secondary">{audit.script_details.category}</Badge>
+            </div>
+            <Separator />
+            <div>
+              <h4 className="font-semibold text-blue-700 mb-2">📋 Script Content</h4>
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-700 whitespace-pre-wrap">{audit.script_details.content}</p>
+              </div>
+            </div>
+            <Separator />
+            <div>
+              <h4 className="font-semibold text-purple-700 mb-2">🎯 Expected Outcomes</h4>
+              <ul className="list-disc list-inside space-y-1 bg-purple-50 p-4 rounded-lg">
+                {audit.script_details.expected_outcomes?.map((outcome, idx) => (
+                  <li key={idx} className="text-sm text-gray-700">{outcome}</li>
+                ))}
+              </ul>
+            </div>
+            <Separator />
+            <div>
+              <h4 className="font-semibold text-indigo-700 mb-2">🔑 Key Points to Cover</h4>
+              <ul className="list-disc list-inside space-y-1 bg-indigo-50 p-4 rounded-lg">
+                {audit.script_details.key_points?.map((point, idx) => (
+                  <li key={idx} className="text-sm text-gray-700">{point}</li>
+                ))}
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Transcript */}
       <Card className="mb-6">
         <CardHeader>
           <CardTitle className="flex items-center">
             <MessageSquare className="w-5 h-5 mr-2" />
-            Conversation Transcript
+            Actual Conversation Transcript
           </CardTitle>
+          <CardDescription>What was actually said during the call</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="bg-gray-50 p-4 rounded-lg max-h-64 overflow-y-auto">
