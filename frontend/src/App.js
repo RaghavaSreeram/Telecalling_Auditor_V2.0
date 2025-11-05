@@ -87,6 +87,7 @@ function App() {
             <Route path="upload" element={<UploadAudio />} />
             <Route path="audits" element={<AuditResults />} />
             <Route path="audits/:auditId" element={<AuditDetail />} />
+            <Route path="manager" element={<ManagerDashboard />} />
           </Route>
         </Routes>
       </BrowserRouter>
