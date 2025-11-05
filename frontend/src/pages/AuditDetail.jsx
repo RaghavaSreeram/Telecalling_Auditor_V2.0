@@ -223,36 +223,52 @@ export default function AuditDetail() {
 
       {/* Script Adherence Details */}
       {analysis.script_adherence_details && (
-        <Card className="mb-6">
-          <CardHeader>
+        <Card className="mb-6 border-2 border-orange-200">
+          <CardHeader className="bg-orange-50">
             <CardTitle className="flex items-center">
-              <Target className="w-5 h-5 mr-2" />
+              <Target className="w-5 h-5 mr-2 text-orange-600" />
               Script Adherence Analysis
             </CardTitle>
+            <CardDescription>Comparison of expected vs actual performance</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <h4 className="font-semibold text-green-700 mb-2">✓ Points Followed</h4>
-              <ul className="list-disc list-inside space-y-1">
+          <CardContent className="space-y-4 pt-6">
+            <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+              <h4 className="font-semibold text-green-700 mb-3 flex items-center">
+                <span className="text-xl mr-2">✓</span>
+                Key Points Successfully Followed
+              </h4>
+              <ul className="space-y-2">
                 {analysis.script_adherence_details.followed_points?.map((point, idx) => (
-                  <li key={idx} className="text-sm text-gray-700">{point}</li>
+                  <li key={idx} className="text-sm text-gray-700 flex items-start">
+                    <span className="text-green-600 mr-2 mt-0.5">•</span>
+                    <span>{point}</span>
+                  </li>
                 ))}
               </ul>
             </div>
             <Separator />
-            <div>
-              <h4 className="font-semibold text-red-700 mb-2">✗ Points Missed</h4>
-              <ul className="list-disc list-inside space-y-1">
+            <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+              <h4 className="font-semibold text-red-700 mb-3 flex items-center">
+                <span className="text-xl mr-2">✗</span>
+                Key Points Missed or Not Addressed
+              </h4>
+              <ul className="space-y-2">
                 {analysis.script_adherence_details.missed_points?.map((point, idx) => (
-                  <li key={idx} className="text-sm text-gray-700">{point}</li>
+                  <li key={idx} className="text-sm text-gray-700 flex items-start">
+                    <span className="text-red-600 mr-2 mt-0.5">•</span>
+                    <span>{point}</span>
+                  </li>
                 ))}
               </ul>
             </div>
             {analysis.script_adherence_details.deviations && (
               <>
                 <Separator />
-                <div>
-                  <h4 className="font-semibold text-orange-700 mb-2">Deviations</h4>
+                <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                  <h4 className="font-semibold text-yellow-700 mb-3 flex items-center">
+                    <span className="text-xl mr-2">⚠</span>
+                    Deviations from Script
+                  </h4>
                   <p className="text-sm text-gray-700">{analysis.script_adherence_details.deviations}</p>
                 </div>
               </>
