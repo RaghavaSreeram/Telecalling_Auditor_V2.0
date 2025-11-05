@@ -489,11 +489,16 @@ async def get_audits(current_user: User = Depends(get_current_user)):
             audit["processed_at"] = datetime.fromisoformat(audit["processed_at"])
     return audits
 
-@api_router.get("/audits/{audit_id}", response_model=AudioAudit)
+@api_router.get("/audits/{audit_id}")
 async def get_audit(audit_id: str, current_user: User = Depends(get_current_user)):
     audit = await db.audio_audits.find_one({"id": audit_id}, {"_id": 0})
     if not audit:
         raise HTTPException(status_code=404, detail="Audit not found")
+    
+    # Get script details
+    script = None
+    if audit.get("script_id"):
+        script = await db.scripts.find_one({"id": audit["script_id"]}, {"_id": 0})
     
     if isinstance(audit.get("upload_date"), str):
         audit["upload_date"] = datetime.fromisoformat(audit["upload_date"])
@@ -502,7 +507,10 @@ async def get_audit(audit_id: str, current_user: User = Depends(get_current_user
     if isinstance(audit.get("processed_at"), str):
         audit["processed_at"] = datetime.fromisoformat(audit["processed_at"])
     
-    return AudioAudit(**audit)
+    # Add script details to response
+    audit["script_details"] = script
+    
+    return audit
 
 @api_router.get("/dashboard/stats")
 async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
