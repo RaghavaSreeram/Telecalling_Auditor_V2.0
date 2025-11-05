@@ -325,7 +325,7 @@ Analyze this call and provide the structured JSON output as specified in the sys
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
 
 # Background task for processing audio
-async def process_audio_audit(audit_id: str, audio_path: str, script: Script):
+async def process_audio_audit(audit_id: str, audio_path: str, script: Script, agent_number: str, customer_number: str, call_date: datetime):
     try:
         # Update status to processing
         await db.audio_audits.update_one(
@@ -337,8 +337,8 @@ async def process_audio_audit(audit_id: str, audio_path: str, script: Script):
         transcription_result = await transcribe_audio_assemblyai(audio_path)
         transcript = transcription_result.get("text", "")
         
-        # Analyze transcript
-        analysis = await analyze_transcript(transcript, script)
+        # Analyze transcript with enhanced system prompt
+        analysis = await analyze_transcript(transcript, script, agent_number, customer_number, call_date)
         
         # Update audit record
         update_data = {
