@@ -15,6 +15,7 @@ export default function Layout({ setIsAuthenticated }) {
 
   const menuItems = [
     { path: "/", label: "Dashboard", icon: LayoutDashboard, testId: "nav-dashboard" },
+    { path: "/manager", label: "Manager Analytics", icon: BarChart2, testId: "nav-manager" },
     { path: "/scripts", label: "Scripts", icon: FileText, testId: "nav-scripts" },
     { path: "/upload", label: "Upload Audio", icon: Upload, testId: "nav-upload" },
     { path: "/audits", label: "Audit Results", icon: FileAudio, testId: "nav-audits" },
