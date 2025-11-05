@@ -210,10 +210,87 @@ async def transcribe_audio_assemblyai(audio_url: str) -> dict:
         
         time.sleep(3)
 
-# OpenAI analysis
-async def analyze_transcript(transcript: str, script: Script) -> dict:
-    prompt = f"""
-You are an expert telecalling auditor. Analyze the following conversation transcript against the provided script.
+# OpenAI analysis with comprehensive system role
+async def analyze_transcript(transcript: str, script: Script, agent_number: str, customer_number: str, call_date: datetime) -> dict:
+    system_prompt = """SYSTEM ROLE:
+You are an AI Quality Analyst for Radiance Realty's Telecaller Audit platform. 
+Your job is to evaluate each telecaller call recording after transcription and provide 
+structured JSON output with detailed performance insights for the agent, team, and management.
+
+TASK:
+Analyze the transcribed conversation between the agent and customer to extract 
+key operational metrics, evaluate performance quality, and generate management-level insights.
+
+PRIMARY EVALUATION METRICS (Per Call)
+For each call, extract or compute the following fields:
+- agent_id: unique identifier of the telecaller
+- customer_id: CRM or lead ID
+- call_start_time: timestamp of the call start
+- call_duration_seconds: estimated duration based on conversation length
+- script_followed: true/false – whether mandatory script keywords were mentioned
+- lead_qualified: true/false – whether agent captured intent, budget, location, and timeline
+- site_visit_confirmed: true/false – whether a site visit or brochure confirmation occurred
+- sentiment: "positive", "neutral", or "negative" based on customer tone and interest
+- remarks: short feedback for the agent
+- script_adherence_score: 0-100 score for following the script
+- communication_score: 0-100 score for communication quality
+- overall_score: 0-100 overall performance score
+
+PERFORMANCE METRICS (Aggregated)
+- script_adherence_rate: percentage of script followed
+- lead_qualification_rate: quality of lead qualification
+- site_visit_conversion_rate: success in closing for site visit
+- sentiment_positive_rate: positive customer sentiment percentage
+
+OUTPUT FORMAT (Strict JSON)
+Return JSON exactly in this format - no explanations, markdown, or additional text:
+
+{
+  "agent_id": "string",
+  "customer_id": "string",
+  "call_start_time": "ISO timestamp",
+  "call_duration_seconds": number,
+  "script_followed": boolean,
+  "lead_qualified": boolean,
+  "site_visit_confirmed": boolean,
+  "sentiment": "positive/neutral/negative",
+  "remarks": "string",
+  "overall_score": number,
+  "script_adherence_score": number,
+  "communication_score": number,
+  "outcome_achieved": boolean,
+  "lead_status": "qualified/site_visit_scheduled/follow_up_required/not_interested",
+  "script_adherence_details": {
+    "followed_points": ["array of strings"],
+    "missed_points": ["array of strings"],
+    "deviations": "string"
+  },
+  "communication_analysis": {
+    "tone": "professional/casual/aggressive/friendly",
+    "clarity": number,
+    "listening_skills": number,
+    "objection_handling": number
+  },
+  "strengths": ["array of strings"],
+  "areas_for_improvement": ["array of strings"],
+  "summary": "string",
+  "performance_metrics": {
+    "script_adherence_rate": number,
+    "lead_qualification_rate": number,
+    "site_visit_conversion_rate": number,
+    "sentiment_positive_rate": number
+  }
+}
+
+EVALUATION STYLE:
+- Be precise, data-driven, and professional
+- Only output valid JSON
+- Base all metrics on the actual conversation"""
+
+    user_prompt = f"""
+**Agent ID:** {agent_number}
+**Customer ID:** {customer_number}
+**Call Date:** {call_date.isoformat()}
 
 **Telecalling Script:**
 {script.content}
@@ -227,36 +304,15 @@ You are an expert telecalling auditor. Analyze the following conversation transc
 **Actual Conversation Transcript:**
 {transcript}
 
-**Please provide a detailed analysis in JSON format with the following structure:**
-{{
-  "overall_score": <0-100>,
-  "script_adherence_score": <0-100>,
-  "communication_score": <0-100>,
-  "outcome_achieved": <true/false>,
-  "lead_status": "<qualified/site_visit_scheduled/follow_up_required/not_interested>",
-  "script_adherence_details": {{
-    "followed_points": ["list of key points followed"],
-    "missed_points": ["list of key points missed"],
-    "deviations": "description of any deviations"
-  }},
-  "communication_analysis": {{
-    "tone": "<professional/casual/aggressive/friendly>",
-    "clarity": <0-100>,
-    "listening_skills": <0-100>,
-    "objection_handling": <0-100>
-  }},
-  "strengths": ["list of strengths"],
-  "areas_for_improvement": ["list of areas to improve"],
-  "summary": "brief summary of the call performance"
-}}
+Analyze this call and provide the structured JSON output as specified in the system role.
 """
     
     try:
         response = openai_client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "You are an expert telecalling auditor who provides detailed, objective analysis."},
-                {"role": "user", "content": prompt}
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
             ],
             response_format={"type": "json_object"},
             temperature=0.3
