@@ -1246,17 +1246,199 @@ async def create_audit_form(form_data: dict, current_user: User = Depends(get_cu
 
 @api_router.get("/audit-forms")
 async def get_audit_forms(current_user: User = Depends(get_current_user)):
-    """Get all active audit forms"""
-    forms = await db.audit_forms.find({"is_active": True}, {"_id": 0}).to_list(100)
+    """Get all available audit form schemas"""
+    forms = await db.audit_form_schemas.find({"is_active": True}, {"_id": 0}).to_list(100)
     return forms
 
 @api_router.get("/audit-forms/{form_id}")
 async def get_audit_form(form_id: str, current_user: User = Depends(get_current_user)):
-    """Get specific audit form"""
-    form = await db.audit_forms.find_one({"id": form_id}, {"_id": 0})
+    """Get specific audit form schema"""
+    form = await db.audit_form_schemas.find_one({"id": form_id}, {"_id": 0})
     if not form:
         raise HTTPException(status_code=404, detail="Form not found")
     return form
+
+@api_router.post("/audit-forms/seed-categorized")
+async def seed_categorized_form(current_user: User = Depends(get_current_user)):
+    """Create a sample categorized audit form (Admin only)"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    from models import AuditFormSchema, AuditFormCategory, AuditFormField
+    import uuid
+    
+    # Create sample categorized form
+    form = AuditFormSchema(
+        id=str(uuid.uuid4()),
+        name="Categorized Telecalling Audit Form",
+        description="Structured audit form with categories for comprehensive evaluation",
+        fields=[],  # Empty for categorized form
+        categories=[
+            AuditFormCategory(
+                label="Greeting & Introduction",
+                description="Initial contact and introduction phase",
+                fields=[
+                    AuditFormField(
+                        id="greeting_professional",
+                        label="Professional greeting used",
+                        type="checkbox",
+                        required=True,
+                        weight=2.0,
+                        critical=True
+                    ),
+                    AuditFormField(
+                        id="introduction_clear",
+                        label="Clear self-introduction",
+                        type="rating",
+                        required=True,
+                        min_value=1.0,
+                        max_value=5.0,
+                        weight=1.5
+                    ),
+                    AuditFormField(
+                        id="tone_friendly",
+                        label="Friendly and warm tone",
+                        type="rating",
+                        required=True,
+                        min_value=1.0,
+                        max_value=5.0,
+                        weight=1.0
+                    )
+                ],
+                weight=2.0
+            ),
+            AuditFormCategory(
+                label="Need Assessment",
+                description="Understanding customer requirements",
+                fields=[
+                    AuditFormField(
+                        id="asked_requirements",
+                        label="Asked about customer requirements",
+                        type="checkbox",
+                        required=True,
+                        weight=2.0,
+                        critical=True
+                    ),
+                    AuditFormField(
+                        id="active_listening",
+                        label="Active listening demonstrated",
+                        type="rating",
+                        required=True,
+                        min_value=1.0,
+                        max_value=5.0,
+                        weight=1.5
+                    ),
+                    AuditFormField(
+                        id="clarifying_questions",
+                        label="Asked clarifying questions",
+                        type="rating",
+                        required=True,
+                        min_value=1.0,
+                        max_value=5.0,
+                        weight=1.0
+                    )
+                ],
+                weight=3.0
+            ),
+            AuditFormCategory(
+                label="Product Presentation",
+                description="Property/product information delivery",
+                fields=[
+                    AuditFormField(
+                        id="features_explained",
+                        label="Features clearly explained",
+                        type="rating",
+                        required=True,
+                        min_value=1.0,
+                        max_value=5.0,
+                        weight=2.0
+                    ),
+                    AuditFormField(
+                        id="benefits_highlighted",
+                        label="Benefits highlighted",
+                        type="rating",
+                        required=True,
+                        min_value=1.0,
+                        max_value=5.0,
+                        weight=2.0
+                    ),
+                    AuditFormField(
+                        id="pricing_discussed",
+                        label="Pricing discussed appropriately",
+                        type="checkbox",
+                        required=True,
+                        weight=1.5
+                    )
+                ],
+                weight=3.0
+            ),
+            AuditFormCategory(
+                label="Objection Handling",
+                description="Addressing customer concerns",
+                fields=[
+                    AuditFormField(
+                        id="objections_addressed",
+                        label="Objections professionally addressed",
+                        type="rating",
+                        required=True,
+                        min_value=1.0,
+                        max_value=5.0,
+                        weight=2.5
+                    ),
+                    AuditFormField(
+                        id="alternative_solutions",
+                        label="Offered alternative solutions",
+                        type="checkbox",
+                        required=False,
+                        weight=1.0
+                    )
+                ],
+                weight=2.5
+            ),
+            AuditFormCategory(
+                label="Closing",
+                description="Call closure and next steps",
+                fields=[
+                    AuditFormField(
+                        id="clear_cta",
+                        label="Clear call-to-action given",
+                        type="checkbox",
+                        required=True,
+                        weight=2.0,
+                        critical=True
+                    ),
+                    AuditFormField(
+                        id="followup_scheduled",
+                        label="Follow-up scheduled",
+                        type="checkbox",
+                        required=False,
+                        weight=1.5
+                    ),
+                    AuditFormField(
+                        id="professional_closing",
+                        label="Professional closing",
+                        type="rating",
+                        required=True,
+                        min_value=1.0,
+                        max_value=5.0,
+                        weight=1.0
+                    )
+                ],
+                weight=2.0
+            )
+        ],
+        total_points=100.0,
+        passing_score=70.0,
+        is_active=True
+    )
+    
+    form_dict = form.model_dump()
+    form_dict["created_at"] = form_dict["created_at"].isoformat()
+    form_dict["updated_at"] = form_dict["updated_at"].isoformat()
+    
+    await db.audit_form_schemas.insert_one(form_dict)
+    
+    return {"message": "Categorized form created", "form_id": form.id, "form": form_dict}
 
 # Audit Response Routes
 @api_router.post("/audits/{assignment_id}/draft")
