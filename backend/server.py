@@ -873,6 +873,219 @@ async def get_auditor_metrics(current_user: User = Depends(get_current_user)):
         "conversion_rate": 0
     }
 
+# Initialize audit service
+audit_service = AuditService(db)
+
+# Audit Queue & Assignment Routes
+@api_router.post("/audits/import-call")
+async def import_call_reference(call_data: dict, current_user: User = Depends(get_current_user)):
+    """Import call reference from CRM/AWS"""
+    if current_user.role not in ["admin", "manager"]:
+        raise HTTPException(status_code=403, detail="Admin or Manager access required")
+    
+    call_id = await audit_service.create_call_reference(call_data)
+    return {"message": "Call reference imported", "call_id": call_id}
+
+@api_router.post("/audits/auto-assign")
+async def auto_assign_audits(team_id: str = None, current_user: User = Depends(get_current_user)):
+    """Auto-assign unassigned calls to auditors"""
+    if current_user.role not in ["admin", "manager"]:
+        raise HTTPException(status_code=403, detail="Admin or Manager access required")
+    
+    count = await audit_service.auto_assign_audits(team_id)
+    return {"message": f"Assigned {count} calls", "assignments_created": count}
+
+@api_router.post("/audits/manual-assign")
+async def manual_assign_audit(
+    call_reference_id: str,
+    auditor_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Manually assign call to specific auditor"""
+    if current_user.role not in ["admin", "manager"]:
+        raise HTTPException(status_code=403, detail="Admin or Manager access required")
+    
+    assignment_id = await audit_service.manual_assign(
+        call_reference_id, auditor_id, current_user.id
+    )
+    return {"message": "Call assigned", "assignment_id": assignment_id}
+
+@api_router.get("/audits/pending")
+async def get_pending_audits(current_user: User = Depends(get_current_user)):
+    """Get pending audits for current auditor"""
+    if current_user.role == "auditor":
+        audits = await audit_service.get_auditor_queue(current_user.id, "pending")
+    else:
+        # Manager/Admin see all pending
+        audits = await db.audit_assignments.find(
+            {"status": "pending"}, {"_id": 0}
+        ).to_list(1000)
+    
+    return audits
+
+@api_router.get("/audits/completed")
+async def get_completed_audits(current_user: User = Depends(get_current_user)):
+    """Get completed audits"""
+    if current_user.role == "auditor":
+        audits = await audit_service.get_auditor_queue(current_user.id, "completed")
+    else:
+        audits = await db.audit_assignments.find(
+            {"status": "completed"}, {"_id": 0}
+        ).to_list(1000)
+    
+    return audits
+
+@api_router.get("/audits/my-queue")
+async def get_my_audit_queue(current_user: User = Depends(get_current_user)):
+    """Get full audit queue for current auditor"""
+    if current_user.role != "auditor":
+        raise HTTPException(status_code=403, detail="Auditor access only")
+    
+    audits = await audit_service.get_auditor_queue(current_user.id)
+    return audits
+
+# Transcript Routes
+@api_router.get("/transcripts/{call_reference_id}")
+async def get_transcript(call_reference_id: str, current_user: User = Depends(get_current_user)):
+    """Get transcript for a call"""
+    # Check if user has access to this call
+    call_ref = await db.call_references.find_one({"id": call_reference_id}, {"_id": 0})
+    if not call_ref:
+        raise HTTPException(status_code=404, detail="Call reference not found")
+    
+    # Get assignment to verify access
+    if current_user.role == "auditor":
+        assignment = await db.audit_assignments.find_one({
+            "call_reference_id": call_reference_id,
+            "auditor_id": current_user.id
+        })
+        if not assignment:
+            raise HTTPException(status_code=403, detail="Not assigned to this audit")
+    
+    # Fetch transcript
+    transcript_segments = await TranscriptService.fetch_transcript(
+        call_reference_id, 
+        call_ref.get("transcript_url")
+    )
+    
+    return {
+        "call_id": call_reference_id,
+        "segments": [seg.model_dump() for seg in transcript_segments],
+        "formatted_text": TranscriptService.format_transcript_for_display(transcript_segments)
+    }
+
+# Audit Form Routes
+@api_router.post("/audit-forms")
+async def create_audit_form(form_data: dict, current_user: User = Depends(get_current_user)):
+    """Create audit form schema"""
+    if current_user.role not in ["admin", "manager"]:
+        raise HTTPException(status_code=403, detail="Admin or Manager access required")
+    
+    form_schema = AuditFormSchema(**form_data)
+    form_dict = form_schema.model_dump()
+    form_dict["created_at"] = form_dict["created_at"].isoformat()
+    form_dict["updated_at"] = form_dict["updated_at"].isoformat()
+    
+    await db.audit_forms.insert_one(form_dict)
+    return {"message": "Form created", "form_id": form_schema.id}
+
+@api_router.get("/audit-forms")
+async def get_audit_forms(current_user: User = Depends(get_current_user)):
+    """Get all active audit forms"""
+    forms = await db.audit_forms.find({"is_active": True}, {"_id": 0}).to_list(100)
+    return forms
+
+@api_router.get("/audit-forms/{form_id}")
+async def get_audit_form(form_id: str, current_user: User = Depends(get_current_user)):
+    """Get specific audit form"""
+    form = await db.audit_forms.find_one({"id": form_id}, {"_id": 0})
+    if not form:
+        raise HTTPException(status_code=404, detail="Form not found")
+    return form
+
+# Audit Response Routes
+@api_router.post("/audits/{assignment_id}/draft")
+async def save_audit_draft(
+    assignment_id: str,
+    draft_data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Save audit draft"""
+    # Verify assignment belongs to user
+    assignment = await db.audit_assignments.find_one({"id": assignment_id})
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    
+    if current_user.role == "auditor" and assignment["auditor_id"] != current_user.id:
+        raise HTTPException(status_code=403, detail="Not your assignment")
+    
+    await audit_service.save_audit_draft(
+        assignment_id,
+        draft_data.get("responses", {}),
+        draft_data.get("highlights", [])
+    )
+    
+    return {"message": "Draft saved"}
+
+@api_router.post("/audits/{assignment_id}/submit")
+async def submit_audit_response(
+    assignment_id: str,
+    response_data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Submit completed audit"""
+    # Verify assignment
+    assignment = await db.audit_assignments.find_one({"id": assignment_id})
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    
+    if current_user.role == "auditor" and assignment["auditor_id"] != current_user.id:
+        raise HTTPException(status_code=403, detail="Not your assignment")
+    
+    response_id = await audit_service.submit_audit(assignment_id, response_data)
+    
+    return {"message": "Audit submitted", "response_id": response_id}
+
+@api_router.get("/audits/{assignment_id}/response")
+async def get_audit_response(assignment_id: str, current_user: User = Depends(get_current_user)):
+    """Get audit response (draft or submitted)"""
+    response = await db.audit_responses.find_one({"assignment_id": assignment_id}, {"_id": 0})
+    if not response:
+        raise HTTPException(status_code=404, detail="No response found")
+    
+    return response
+
+# Dashboard Routes
+@api_router.get("/dashboard/stats")
+async def get_enhanced_dashboard_stats(current_user: User = Depends(get_current_user)):
+    """Get enhanced dashboard statistics"""
+    stats = await audit_service.get_dashboard_stats(current_user.id, current_user.role)
+    return stats
+
+# Retention Policy Routes
+@api_router.post("/admin/retention-policy")
+async def create_retention_policy(policy_data: dict, current_user: User = Depends(get_current_user)):
+    """Create retention policy"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    policy = RetentionPolicy(**policy_data)
+    policy_dict = policy.model_dump()
+    policy_dict["created_at"] = policy_dict["created_at"].isoformat()
+    policy_dict["updated_at"] = policy_dict["updated_at"].isoformat()
+    
+    await db.retention_policies.insert_one(policy_dict)
+    return {"message": "Retention policy created", "policy_id": policy.id}
+
+@api_router.get("/admin/retention-policies")
+async def get_retention_policies(current_user: User = Depends(get_current_user)):
+    """Get all retention policies"""
+    if current_user.role not in ["admin", "manager"]:
+        raise HTTPException(status_code=403, detail="Admin or Manager access required")
+    
+    policies = await db.retention_policies.find({}, {"_id": 0}).to_list(100)
+    return policies
+
 # Include router
 app.include_router(api_router)
 
