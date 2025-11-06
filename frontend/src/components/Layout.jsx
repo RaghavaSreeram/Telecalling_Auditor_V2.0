@@ -1,25 +1,46 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "./ui/button";
-import { PhoneCall, LogOut, LayoutDashboard, FileText, Upload, FileAudio, BarChart2 } from "lucide-react";
+import { Badge } from "./ui/badge";
+import { PhoneCall, LogOut, LayoutDashboard, FileText, Upload, FileAudio, BarChart2, User } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
-export default function Layout({ setIsAuthenticated }) {
+export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, logout, isManager, isAuditor } = useAuth();
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    setIsAuthenticated(false);
+    logout();
     navigate("/login");
   };
 
-  const menuItems = [
-    { path: "/", label: "Dashboard", icon: LayoutDashboard, testId: "nav-dashboard" },
-    { path: "/manager", label: "Manager Analytics", icon: BarChart2, testId: "nav-manager" },
-    { path: "/scripts", label: "Scripts", icon: FileText, testId: "nav-scripts" },
-    { path: "/upload", label: "Upload Audio", icon: Upload, testId: "nav-upload" },
-    { path: "/audits", label: "Audit Results", icon: FileAudio, testId: "nav-audits" },
-  ];
+  // Dynamic menu items based on role
+  const getMenuItems = () => {
+    const items = [];
+    
+    if (isManager()) {
+      items.push(
+        { path: "/manager", label: "Manager Analytics", icon: BarChart2, testId: "nav-manager" }
+      );
+    }
+    
+    if (isAuditor()) {
+      items.push(
+        { path: "/auditor", label: "My Performance", icon: LayoutDashboard, testId: "nav-auditor" }
+      );
+    }
+    
+    // Common items
+    items.push(
+      { path: "/scripts", label: "Scripts", icon: FileText, testId: "nav-scripts" },
+      { path: "/upload", label: "Upload Audio", icon: Upload, testId: "nav-upload" },
+      { path: "/audits", label: "Audit Results", icon: FileAudio, testId: "nav-audits" }
+    );
+    
+    return items;
+  };
+
+  const menuItems = getMenuItems();
 
   return (
     <div className="min-h-screen flex">
