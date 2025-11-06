@@ -387,6 +387,56 @@ agent_communication:
       - Manager actions (resync, validate) work
       - Health panel displays stats and trends
       - RBAC restrictions are enforced in UI
+  - agent: "main"
+    message: |
+      ✅ Phase 1 Features Implementation Complete
+      
+      **Feature 1: Call Reference Import UI** ✅
+      - Created ImportCallReference.jsx component with form inputs
+      - Form fields: call_id, source (CRM/AWS S3/Manual), agent_id, customer_id, date_time, duration, campaign_id
+      - Added GET /api/call-references endpoint to fetch recent imports
+      - Displays last 10 imported calls with source badges, timestamps, duration
+      - Added route /crm/import and "Import Call" button in CRM list header
+      - RBAC: Manager/Admin only access
+      
+      **Feature 2: Weighted Scoring Logic (Backend)** ✅
+      - Updated AuditService._calculate_weighted_score to use form schema weights
+      - Normalize field values based on type (number, checkbox, select, text)
+      - Calculate weighted score: (field_value / max_value) * weight
+      - Sum all weighted scores and divide by total possible score
+      - Returns percentage score out of 100
+      - Fallback to simple average if no schema provided
+      
+      **Feature 3: Compliance Threshold Detection** ✅
+      - Added compliance_result field to AuditResponse model ("PASS" or "FAIL")
+      - Added critical flag to AuditFormField model
+      - Implemented _check_compliance method:
+        * Check if overall_score < passing_score → FAIL
+        * Check if any critical field fails → FAIL
+        * For checkboxes: must be checked
+        * For numbers/ratings: must meet min_value
+        * For selects: check if value is negative (no, false, fail, etc.)
+      - Updated submit_audit to calculate compliance_result automatically
+      - Added compliance badges to AuditDetail page (✓ COMPLIANT / ✗ NON-COMPLIANT in green/red)
+      - Added compliance badges to AuditResults list view
+      
+      **Backend Changes:**
+      - models.py: Added critical flag to AuditFormField, compliance_result to AuditResponse
+      - audit_service.py: New methods _calculate_weighted_score, _normalize_field_value, _check_compliance
+      - server.py: New endpoint GET /api/call-references
+      
+      **Frontend Changes:**
+      - Created ImportCallReference.jsx (call import form + recent imports list)
+      - Updated App.js: Added /crm/import route
+      - Updated CRMList.jsx: Added "Import Call" button
+      - Updated AuditDetail.jsx: Display compliance badge on score card
+      - Updated AuditResults.jsx: Display compliance badge in audit list
+      
+      **Ready for Testing:**
+      - Call Reference Import form functionality
+      - Weighted scoring calculation with different field types
+      - Compliance detection (score threshold + critical fields)
+      - Compliance badges display in UI
   - agent: "testing"
     message: |
       🎯 CRM Integration Frontend Testing Complete - All Major Features Working Excellently
