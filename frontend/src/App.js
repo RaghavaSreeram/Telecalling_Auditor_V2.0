@@ -19,6 +19,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import CRMList from "./pages/CRMList";
 import CRMDetail from "./pages/CRMDetail";
 import CRMHealth from "./pages/CRMHealth";
+import ImportCallReference from "./pages/ImportCallReference";
 import Layout from "./components/Layout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Toaster } from "./components/ui/sonner";
