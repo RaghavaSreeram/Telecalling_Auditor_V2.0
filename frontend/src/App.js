@@ -130,12 +130,14 @@ function AppRoutes() {
 
 function App() {
   return (
-    <AuthProvider>
-      <div className="App">
-        <AppRoutes />
-        <Toaster position="top-right" />
-      </div>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <div className="App">
+          <AppRoutes />
+          <Toaster position="top-right" />
+        </div>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 
