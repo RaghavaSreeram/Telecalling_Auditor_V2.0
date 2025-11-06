@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from '../components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Search, ExternalLink, CheckCircle, XCircle, Clock, AlertCircle, ChevronLeft, ChevronRight, Activity } from 'lucide-react';
+import { Search, ExternalLink, CheckCircle, XCircle, Clock, AlertCircle, ChevronLeft, ChevronRight, Activity, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 
