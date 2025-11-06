@@ -52,33 +52,17 @@ export default function Login() {
           <CardTitle className="text-3xl font-bold" style={{ fontFamily: 'Space Grotesk' }}>
             Telecalling Auditor
           </CardTitle>
-          <CardDescription>
-            {isLogin ? "Sign in to your account" : "Create a new account"}
-          </CardDescription>
+          <CardDescription>Sign in to your account</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor="full_name">Full Name</Label>
-                <Input
-                  id="full_name"
-                  data-testid="full-name-input"
-                  placeholder="John Doe"
-                  value={formData.full_name}
-                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                  required
-                />
-              </div>
-            )}
-
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 data-testid="email-input"
                 type="email"
-                placeholder="admin@example.com"
+                placeholder="auditor@radiance.com"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 required
@@ -104,19 +88,16 @@ export default function Login() {
               className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
               disabled={loading}
             >
-              {loading ? "Processing..." : isLogin ? "Sign In" : "Create Account"}
+              {loading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
 
-          <div className="mt-4 text-center text-sm">
-            <button
-              data-testid="toggle-auth-mode"
-              type="button"
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-indigo-600 hover:underline"
-            >
-              {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
-            </button>
+          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+            <p className="text-xs font-semibold text-blue-900 mb-2">Test Accounts:</p>
+            <div className="text-xs text-blue-800 space-y-1">
+              <p>• Auditor: auditor@radiance.com / auditor123</p>
+              <p>• Manager: manager@radiance.com / manager123</p>
+            </div>
           </div>
         </CardContent>
       </Card>
