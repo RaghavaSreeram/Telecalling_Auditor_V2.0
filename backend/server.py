@@ -53,6 +53,9 @@ security = HTTPBearer()
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
+# Initialize services
+audit_service = None  # Will be initialized after db connection
+
 # Pydantic Models
 class User(BaseModel):
     model_config = ConfigDict(extra="ignore")
