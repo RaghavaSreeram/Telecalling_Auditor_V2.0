@@ -101,3 +101,137 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: |
+  Implement a CRM Integration module with left-nav tab showing CRM → App communication for each call.
+  Features: user/agent mappings, recording reference (URL/ID), transcript status, sync logs, linkage to audit records.
+  RBAC: Auditor (read-only assigned records), Manager (full access + resync/export).
+  
+  Functional Requirements:
+  1. Navigation & Routing: /crm (list), /crm/:id (detail), /crm/status (health)
+  2. List View: Paginated table with filters, search, and RBAC
+  3. Detail View: Rich metadata, transcript preview, sync logs, actions (resync, validate)
+  4. Health Panel: Stats, trends, retry failed syncs
+  5. Security: RBAC enforcement server-side
+
+backend:
+  - task: "CRM Models - Define Pydantic models for CRM records, sync logs, agent mappings, health stats"
+    implemented: true
+    working: true
+    file: "/app/backend/crm_models.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Created CRM models with TranscriptStatus, SyncStatus, SyncAction enums and models for CRMRecord, CRMSyncLog, AgentMapping, CRMHealthStats, SyncTrendData. Fixed syntax error in AgentMapping."
+  
+  - task: "CRM Service - Core service for mock data generation, RBAC filtering, sync operations"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/crm_service.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Updated CRMService with seed_mock_data method to generate 50 mock CRM records with S3 URLs, agent mappings, sync logs. Includes RBAC filtering, resync, validation, health stats, and trend calculations."
+  
+  - task: "CRM API Endpoints - REST endpoints for CRM operations"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added CRM endpoints: POST /api/crm/seed, GET /api/crm/calls (with filters/pagination), GET /api/crm/calls/{call_id}, POST /api/crm/calls/{call_id}/resync, POST /api/crm/calls/{call_id}/validate-mapping, GET /api/crm/health, GET /api/crm/health/trends, POST /api/crm/retry-failed. All with RBAC checks."
+
+frontend:
+  - task: "CRM Navigation - Add CRM Integration tab to left nav"
+    implemented: false
+    working: "NA"
+    file: "/app/frontend/src/components/Layout.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Not yet implemented. Will add CRM Integration nav item with icon."
+  
+  - task: "CRM List View - Paginated table with filters and search"
+    implemented: false
+    working: "NA"
+    file: "/app/frontend/src/pages/CRMList.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Not yet implemented. Will create list page with table, filters, pagination."
+  
+  - task: "CRM Detail View - Detail drawer/page with rich metadata"
+    implemented: false
+    working: "NA"
+    file: "/app/frontend/src/pages/CRMDetail.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Not yet implemented. Will create detail page with sync logs, transcript preview, actions."
+  
+  - task: "CRM Health Panel - Health statistics and trends"
+    implemented: false
+    working: "NA"
+    file: "/app/frontend/src/pages/CRMHealth.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Not yet implemented. Will create health panel with stats cards and trend chart."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 0
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "CRM Service - Core service for mock data generation, RBAC filtering, sync operations"
+    - "CRM API Endpoints - REST endpoints for CRM operations"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      Backend implementation complete for CRM Integration module:
+      1. Fixed syntax error in crm_models.py (missing closing parenthesis)
+      2. Updated crm_service.py with seed_mock_data method and helper methods
+      3. Added 9 CRM API endpoints in server.py with full RBAC enforcement
+      4. Initialized crm_service in server.py
+      5. Backend service restarted successfully
+      
+      Please test the following:
+      - POST /api/crm/seed (admin only) - seed 50 mock CRM records
+      - GET /api/crm/calls (all roles, RBAC filtered) - list with pagination/filters
+      - GET /api/crm/calls/{call_id} (all roles, RBAC) - get detail
+      - POST /api/crm/calls/{call_id}/resync (manager/admin) - resync record
+      - GET /api/crm/health (manager/admin) - get health stats
+      - GET /api/crm/health/trends (manager/admin) - get 7-day trends
+      - POST /api/crm/retry-failed (manager/admin) - retry all failed syncs
+      
+      Use existing admin credentials for seeding and full access.
+      Test RBAC: auditor should only see their team's records.
