@@ -443,6 +443,7 @@ async def create_script(script_data: ScriptCreate, current_user: User = Depends(
 
 @api_router.get("/scripts", response_model=List[Script])
 async def get_scripts(current_user: User = Depends(get_current_user)):
+    """All authenticated users can view scripts"""
     scripts = await db.scripts.find({}, {"_id": 0}).to_list(1000)
     for script in scripts:
         if isinstance(script.get("created_at"), str):
