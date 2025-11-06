@@ -2,9 +2,10 @@ import "@/App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import axios from "axios";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import ErrorBoundary from "./components/ErrorBoundary";
 import suppressResizeObserverWarnings from "./utils/suppressWarnings";
 
-// Suppress benign browser warnings
+// Suppress benign browser warnings and patch ResizeObserver
 suppressResizeObserverWarnings();
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
