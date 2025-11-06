@@ -123,6 +123,11 @@ function AppRoutes() {
           <Route path="audits" element={<AuditResults />} />
           <Route path="audits/:auditId" element={<AuditDetail />} />
           
+          {/* CRM Integration Routes */}
+          <Route path="crm" element={<CRMList />} />
+          <Route path="crm/:call_id" element={<CRMDetail />} />
+          <Route path="crm/status" element={<CRMHealth />} />
+          
           {/* Legacy dashboard route */}
           <Route path="dashboard" element={<Dashboard />} />
         </Route>
