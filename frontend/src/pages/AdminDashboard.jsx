@@ -78,22 +78,32 @@ export default function AdminDashboard() {
       return;
     }
     
+    if (!formData.role) {
+      toast.error("Please select a role");
+      return;
+    }
+    
     try {
       const createData = {
-        email: formData.email,
+        email: formData.email.trim(),
         password: formData.password,
-        full_name: formData.full_name,
+        full_name: formData.full_name.trim(),
         role: formData.role,
-        team_id: formData.team_id || null
+        team_id: formData.team_id ? formData.team_id.trim() : null
       };
       
-      await axios.post(`${API}/admin/users`, createData);
+      console.log('Creating user with data:', createData);
+      
+      const response = await axios.post(`${API}/admin/users`, createData);
+      console.log('User created successfully:', response.data);
+      
       toast.success("User created successfully");
       setDialogOpen(false);
       resetForm();
       fetchAllData();
     } catch (error) {
       console.error("Create error:", error);
+      console.error("Error response:", error.response?.data);
       toast.error(error.response?.data?.detail || "Failed to create user");
     }
   };
