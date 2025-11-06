@@ -14,6 +14,7 @@ class TelecallingAuditorAPITester:
         self.tests_passed = 0
         self.created_script_id = None
         self.created_audit_id = None
+        self.test_call_id = None
 
     def run_test(self, name, method, endpoint, expected_status, data=None, files=None, is_form_data=False):
         """Run a single API test"""
