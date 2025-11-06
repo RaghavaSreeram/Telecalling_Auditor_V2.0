@@ -94,6 +94,15 @@ export default function AuditDetail() {
             <div className={`text-4xl font-bold ${getScoreColor(audit.overall_score)}`}>
               {audit.overall_score.toFixed(1)}%
             </div>
+            {audit.compliance_result && (
+              <Badge className={`mt-3 ${
+                audit.compliance_result === 'PASS' 
+                  ? 'bg-green-500 text-white' 
+                  : 'bg-red-500 text-white'
+              }`}>
+                {audit.compliance_result === 'PASS' ? '✓ COMPLIANT' : '✗ NON-COMPLIANT'}
+              </Badge>
+            )}
           </CardContent>
         </Card>
 
