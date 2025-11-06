@@ -81,6 +81,20 @@ export default function Layout() {
         </nav>
 
         <div className="p-4 border-t border-gray-200">
+          <div className="mb-3 p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center mb-2">
+              <User className="w-4 h-4 mr-2 text-gray-600" />
+              <span className="text-sm font-medium">{user?.full_name}</span>
+            </div>
+            <Badge variant={user?.role === 'manager' ? 'default' : 'secondary'} className="text-xs">
+              {user?.role?.toUpperCase()}
+            </Badge>
+            {user?.team_id && (
+              <Badge variant="outline" className="text-xs ml-1">
+                {user.team_id}
+              </Badge>
+            )}
+          </div>
           <Button
             data-testid="logout-button"
             onClick={handleLogout}
