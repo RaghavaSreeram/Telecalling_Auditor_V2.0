@@ -714,7 +714,7 @@ async def export_analytics_report(
         if date_filter:
             query["processed_at"] = date_filter
     
-    audits = await db.audits.find(query, {"_id": 0}).sort("processed_at", -1).to_list(1000)
+    audits = await db.audio_audits.find(query, {"_id": 0}).sort("processed_at", -1).to_list(1000)
     
     if format == "csv":
         # Generate CSV
