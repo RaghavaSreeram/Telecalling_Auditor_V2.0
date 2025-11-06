@@ -128,6 +128,7 @@ function AppRoutes() {
           <Route path="crm" element={<CRMList />} />
           <Route path="crm/:call_id" element={<CRMDetail />} />
           <Route path="crm/status" element={<CRMHealth />} />
+          <Route path="crm/import" element={<ImportCallReference />} />
           
           {/* Legacy dashboard route */}
           <Route path="dashboard" element={<Dashboard />} />
