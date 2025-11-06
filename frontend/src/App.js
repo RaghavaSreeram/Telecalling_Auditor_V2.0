@@ -2,6 +2,10 @@ import "@/App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import axios from "axios";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import suppressResizeObserverWarnings from "./utils/suppressWarnings";
+
+// Suppress benign browser warnings
+suppressResizeObserverWarnings();
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Scripts from "./pages/Scripts";
