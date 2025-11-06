@@ -1,7 +1,7 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
-import { PhoneCall, LogOut, LayoutDashboard, FileText, Upload, FileAudio, BarChart2, User, Crown, Shield } from "lucide-react";
+import { PhoneCall, LogOut, LayoutDashboard, FileText, Upload, FileAudio, BarChart2, User, Crown, Shield, Database } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 export default function Layout() {
