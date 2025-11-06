@@ -1089,6 +1089,156 @@ async def get_retention_policies(current_user: User = Depends(get_current_user))
     policies = await db.retention_policies.find({}, {"_id": 0}).to_list(100)
     return policies
 
+# Initialize CRM service
+crm_service = CRMService(db)
+
+# ============================================================================
+# CRM Integration Routes
+# ============================================================================
+
+@api_router.post("/crm/seed")
+async def seed_crm_data(count: int = 50, current_user: User = Depends(get_current_user)):
+    """Seed mock CRM data (Admin only)"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    result = await crm_service.seed_mock_data(count)
+    return result
+
+@api_router.get("/crm/calls")
+async def get_crm_calls(
+    page: int = 1,
+    page_size: int = 20,
+    search: Optional[str] = None,
+    campaign: Optional[str] = None,
+    transcript_status: Optional[str] = None,
+    sync_status: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Get paginated CRM call records with filters and RBAC"""
+    filters = {}
+    if search:
+        filters["search"] = search
+    if campaign:
+        filters["campaign_id"] = campaign
+    if transcript_status:
+        filters["transcript_status"] = transcript_status
+    if sync_status:
+        filters["sync_status"] = sync_status
+    if date_from:
+        filters["date_from"] = date_from
+    if date_to:
+        filters["date_to"] = date_to
+    
+    result = await crm_service.get_crm_records(
+        user_id=current_user.id,
+        user_role=current_user.role,
+        filters=filters,
+        page=page,
+        page_size=page_size
+    )
+    return result
+
+@api_router.get("/crm/calls/{call_id}")
+async def get_crm_call_detail(
+    call_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Get detailed CRM call record with sync logs"""
+    # First get the record by call_id
+    record = await db.crm_records.find_one({"call_id": call_id}, {"_id": 0})
+    if not record:
+        raise HTTPException(status_code=404, detail="CRM record not found")
+    
+    # Use the record's id for detail lookup
+    detail = await crm_service.get_crm_record_details(
+        record_id=record["id"],
+        user_id=current_user.id,
+        user_role=current_user.role
+    )
+    
+    if not detail:
+        raise HTTPException(status_code=403, detail="Access denied or record not found")
+    
+    return detail
+
+@api_router.post("/crm/calls/{call_id}/resync")
+async def resync_crm_call(
+    call_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Resync CRM call record (Manager/Admin only)"""
+    if current_user.role not in ["manager", "admin"]:
+        raise HTTPException(status_code=403, detail="Manager or Admin access required")
+    
+    # Get record by call_id
+    record = await db.crm_records.find_one({"call_id": call_id}, {"_id": 0})
+    if not record:
+        raise HTTPException(status_code=404, detail="CRM record not found")
+    
+    try:
+        result = await crm_service.resync_crm_record(
+            record_id=record["id"],
+            user_id=current_user.id
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Resync failed: {str(e)}")
+
+@api_router.post("/crm/calls/{call_id}/validate-mapping")
+async def validate_crm_mapping(
+    call_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Validate and recompute agent mapping (Manager/Admin only)"""
+    if current_user.role not in ["manager", "admin"]:
+        raise HTTPException(status_code=403, detail="Manager or Admin access required")
+    
+    # Get record by call_id
+    record = await db.crm_records.find_one({"call_id": call_id}, {"_id": 0})
+    if not record:
+        raise HTTPException(status_code=404, detail="CRM record not found")
+    
+    try:
+        result = await crm_service.validate_mapping(record["id"])
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@api_router.get("/crm/health")
+async def get_crm_health(current_user: User = Depends(get_current_user)):
+    """Get CRM integration health statistics"""
+    if current_user.role not in ["manager", "admin"]:
+        raise HTTPException(status_code=403, detail="Manager or Admin access required")
+    
+    stats = await crm_service.get_health_stats()
+    return stats
+
+@api_router.get("/crm/health/trends")
+async def get_crm_trends(
+    days: int = 7,
+    current_user: User = Depends(get_current_user)
+):
+    """Get sync trend data for last N days"""
+    if current_user.role not in ["manager", "admin"]:
+        raise HTTPException(status_code=403, detail="Manager or Admin access required")
+    
+    trends = await crm_service.get_sync_trends(days)
+    return {"trends": trends}
+
+@api_router.post("/crm/retry-failed")
+async def retry_failed_syncs(current_user: User = Depends(get_current_user)):
+    """Retry all failed syncs (Manager/Admin only)"""
+    if current_user.role not in ["manager", "admin"]:
+        raise HTTPException(status_code=403, detail="Manager or Admin access required")
+    
+    result = await crm_service.retry_failed_syncs()
+    return result
+
 # Include router
 app.include_router(api_router)
 
