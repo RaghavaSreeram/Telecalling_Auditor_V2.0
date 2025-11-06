@@ -52,7 +52,9 @@ class User(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     email: EmailStr
     full_name: str
-    role: str = "admin"
+    role: str = "auditor"  # auditor, manager, admin
+    team_id: Optional[str] = None
+    status: str = "active"  # active, inactive, suspended
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class UserCreate(BaseModel):
