@@ -189,7 +189,7 @@ class CRMService:
         mapping = await self.db.agent_mappings.find_one({
             "crm_agent_id": record["agent_id"],
             "is_active": True
-        })
+        }, {"_id": 0})
         
         if mapping:
             # Update record with resolved name
