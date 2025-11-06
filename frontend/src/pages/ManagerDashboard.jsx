@@ -16,8 +16,12 @@ import {
   BarChart3,
   ThumbsUp,
   ThumbsDown,
-  Lightbulb
+  Lightbulb,
+  Download,
+  FileText
 } from "lucide-react";
+import { Button } from "../components/ui/button";
+import { toast } from "sonner";
 
 export default function ManagerDashboard() {
   const [overview, setOverview] = useState(null);
