@@ -89,7 +89,15 @@ export default function Layout() {
               <User className="w-4 h-4 mr-2 text-gray-600" />
               <span className="text-sm font-medium">{user?.full_name}</span>
             </div>
-            <Badge variant={user?.role === 'manager' ? 'default' : 'secondary'} className="text-xs">
+            <Badge 
+              variant={
+                user?.role === 'admin' ? 'default' : 
+                user?.role === 'manager' ? 'default' : 
+                'secondary'
+              } 
+              className={`text-xs ${user?.role === 'admin' ? 'bg-yellow-500' : ''}`}
+            >
+              {user?.role === 'admin' && <Crown className="w-3 h-3 mr-1" />}
               {user?.role?.toUpperCase()}
             </Badge>
             {user?.team_id && (
