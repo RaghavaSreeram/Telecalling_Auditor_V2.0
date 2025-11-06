@@ -16,6 +16,12 @@ import requests
 import json
 from openai import OpenAI
 from rbac import Role, Permission, has_permission, require_role, get_role_permissions
+from audit_service import AuditService
+from transcript_service import TranscriptService
+from models import (
+    AuditAssignment, AuditResponse, CallReference, 
+    AuditFormSchema, RetentionPolicy, DashboardStats
+)
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
