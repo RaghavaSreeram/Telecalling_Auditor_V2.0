@@ -1,7 +1,7 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-export const ProtectedRoute = ({ children, requiredRole, requiredPermission }) => {
+export const ProtectedRoute = ({ children, requiredRole, requiredPermission, allowedRoles }) => {
   const { user, hasRole, hasPermission, loading } = useAuth();
 
   if (loading) {
@@ -14,6 +14,27 @@ export const ProtectedRoute = ({ children, requiredRole, requiredPermission }) =
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Admin has access to everything
+  if (user.role === 'admin') {
+    return children;
+  }
+
+  // Check multiple allowed roles
+  if (allowedRoles && Array.isArray(allowedRoles)) {
+    if (!allowedRoles.includes(user.role)) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-red-600 mb-2">Access Denied</h2>
+            <p className="text-gray-600">You don't have permission to access this page.</p>
+            <p className="text-sm text-gray-500 mt-2">Required roles: {allowedRoles.join(', ')}</p>
+          </div>
+        </div>
+      );
+    }
+    return children;
   }
 
   // Check role requirement
