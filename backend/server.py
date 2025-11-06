@@ -555,7 +555,17 @@ async def upload_audio(
 
 @api_router.get("/audits", response_model=List[AudioAudit])
 async def get_audits(current_user: User = Depends(get_current_user)):
-    audits = await db.audio_audits.find({}, {"_id": 0}).sort("upload_date", -1).to_list(1000)
+    """Admin and Manager can view all audits, Auditors see only their assigned ones"""
+    if current_user.role in ["admin", "manager"]:
+        # Admin and Manager see all audits
+        audits = await db.audio_audits.find({}, {"_id": 0}).sort("upload_date", -1).to_list(1000)
+    else:
+        # Auditors see only their assigned audits
+        audits = await db.audio_audits.find(
+            {"agent_number": current_user.id},
+            {"_id": 0}
+        ).sort("upload_date", -1).to_list(1000)
+    
     for audit in audits:
         if isinstance(audit.get("upload_date"), str):
             audit["upload_date"] = datetime.fromisoformat(audit["upload_date"])
