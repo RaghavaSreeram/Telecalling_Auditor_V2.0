@@ -112,6 +112,7 @@ class AuditResponse(BaseModel):
     responses: Dict[str, Any]  # field_id -> value
     highlights: List[TranscriptHighlight] = []
     overall_score: float = 0.0
+    compliance_result: Optional[str] = None  # "PASS" or "FAIL"
     auditor_comments: Optional[str] = None
     flags: List[str] = []  # e.g., ["script_violation", "excellent_service"]
     status: AuditStatus = AuditStatus.DRAFT
