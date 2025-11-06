@@ -117,10 +117,20 @@ export default function CRMList() {
     <div className="container mx-auto py-8 px-4">
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl font-bold">CRM Integration</CardTitle>
-          <CardDescription>
-            View CRM call records with sync status and audit linkage
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-2xl font-bold">CRM Integration</CardTitle>
+              <CardDescription>
+                View CRM call records with sync status and audit linkage
+              </CardDescription>
+            </div>
+            {['manager', 'admin'].includes(user?.role) && (
+              <Button variant="outline" onClick={() => navigate('/crm/status')}>
+                <Activity className="w-4 h-4 mr-2" />
+                Health Status
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {/* Search and Filters */}
