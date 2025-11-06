@@ -106,6 +106,15 @@ export default function AuditResults() {
                       <div className="flex items-center space-x-3 mb-2">
                         <h3 className="text-lg font-semibold">{audit.audio_filename}</h3>
                         {getStatusBadge(audit.status)}
+                        {audit.compliance_result && (
+                          <Badge className={`${
+                            audit.compliance_result === 'PASS' 
+                              ? 'bg-green-500 text-white' 
+                              : 'bg-red-500 text-white'
+                          }`}>
+                            {audit.compliance_result === 'PASS' ? '✓ Compliant' : '✗ Non-Compliant'}
+                          </Badge>
+                        )}
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                         <div>
