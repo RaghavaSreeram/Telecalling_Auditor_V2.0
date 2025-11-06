@@ -667,6 +667,124 @@ async def get_leadership_dashboard(current_user: User = Depends(get_current_user
     from analytics import get_leadership_insights
     return await get_leadership_insights(db)
 
+# Admin-only routes
+@api_router.get("/admin/users")
+async def get_all_users(current_user: User = Depends(get_current_user)):
+    """Admin only: Get all users in the system"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    users = await db.users.find({}, {"_id": 0, "password_hash": 0}).to_list(1000)
+    for user in users:
+        if isinstance(user.get("created_at"), str):
+            user["created_at"] = datetime.fromisoformat(user["created_at"])
+    return users
+
+@api_router.post("/admin/users")
+async def create_user_admin(user_data: UserCreate, current_user: User = Depends(get_current_user)):
+    """Admin only: Create a new user"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Check if user exists
+    existing_user = await db.users.find_one({"email": user_data.email})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Create user
+    new_user = User(
+        email=user_data.email,
+        full_name=user_data.full_name,
+        role=user_data.role,
+        team_id=user_data.team_id
+    )
+    
+    user_dict = new_user.model_dump()
+    user_dict["created_at"] = user_dict["created_at"].isoformat()
+    user_dict["password_hash"] = hash_password(user_data.password)
+    
+    await db.users.insert_one(user_dict)
+    return {"message": "User created successfully", "user": new_user}
+
+@api_router.put("/admin/users/{user_id}")
+async def update_user_admin(
+    user_id: str, 
+    user_data: dict, 
+    current_user: User = Depends(get_current_user)
+):
+    """Admin only: Update user information"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Build update data
+    update_data = {}
+    if "full_name" in user_data:
+        update_data["full_name"] = user_data["full_name"]
+    if "role" in user_data:
+        update_data["role"] = user_data["role"]
+    if "team_id" in user_data:
+        update_data["team_id"] = user_data["team_id"]
+    if "status" in user_data:
+        update_data["status"] = user_data["status"]
+    
+    await db.users.update_one({"id": user_id}, {"$set": update_data})
+    return {"message": "User updated successfully"}
+
+@api_router.delete("/admin/users/{user_id}")
+async def delete_user_admin(user_id: str, current_user: User = Depends(get_current_user)):
+    """Admin only: Delete a user"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    if user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account")
+    
+    result = await db.users.delete_one({"id": user_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {"message": "User deleted successfully"}
+
+@api_router.patch("/admin/users/{user_id}/status")
+async def toggle_user_status(
+    user_id: str, 
+    status_data: dict, 
+    current_user: User = Depends(get_current_user)
+):
+    """Admin only: Toggle user active status"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    if user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot modify your own status")
+    
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {"status": status_data.get("status", "active")}}
+    )
+    return {"message": "User status updated"}
+
+@api_router.get("/admin/stats")
+async def get_admin_stats(current_user: User = Depends(get_current_user)):
+    """Admin only: Get system-wide statistics"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    total_users = await db.users.count_documents({})
+    total_audits = await db.audio_audits.count_documents({})
+    total_scripts = await db.scripts.count_documents({})
+    
+    return {
+        "total_users": total_users,
+        "total_audits": total_audits,
+        "total_scripts": total_scripts,
+        "active_users": await db.users.count_documents({"status": "active"})
+    }
+
 # Auditor-specific routes
 @api_router.get("/auditor/assigned-audits")
 async def get_assigned_audits(current_user: User = Depends(get_current_user)):
