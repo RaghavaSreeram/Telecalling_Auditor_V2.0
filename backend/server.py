@@ -609,26 +609,135 @@ async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
         "average_score": round(avg_score, 2)
     }
 
-# Manager Dashboard Analytics Routes
+# RBAC - Role and Permission Routes
+@api_router.get("/rbac/roles")
+async def get_available_roles(current_user: User = Depends(get_current_user)):
+    """Get all available roles and their descriptions"""
+    from rbac import ROLE_DESCRIPTIONS
+    return ROLE_DESCRIPTIONS
+
+@api_router.get("/rbac/permissions")
+async def get_user_permissions(current_user: User = Depends(get_current_user)):
+    """Get current user's permissions"""
+    user_role = Role(current_user.role)
+    permissions = get_role_permissions(user_role)
+    return {
+        "role": current_user.role,
+        "permissions": [p.value for p in permissions]
+    }
+
+# Manager Dashboard Analytics Routes (Manager/Admin only)
 @api_router.get("/manager/analytics/overview")
 async def get_manager_overview(current_user: User = Depends(get_current_user)):
+    """Manager only: Get overall analytics overview"""
+    user_role = Role(current_user.role)
+    if not has_permission(user_role, Permission.VIEW_ALL_ANALYTICS):
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
     from analytics import get_overall_analytics
     return await get_overall_analytics(db)
 
 @api_router.get("/manager/analytics/agents")
 async def get_agent_performance(agent_id: str = None, current_user: User = Depends(get_current_user)):
+    """Manager only: Get agent performance metrics"""
+    user_role = Role(current_user.role)
+    if not has_permission(user_role, Permission.VIEW_ALL_ANALYTICS):
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
     from analytics import calculate_agent_performance
     return await calculate_agent_performance(db, agent_id)
 
 @api_router.get("/manager/analytics/sentiment")
 async def get_sentiment_analysis(current_user: User = Depends(get_current_user)):
+    """Manager only: Get sentiment analysis"""
+    user_role = Role(current_user.role)
+    if not has_permission(user_role, Permission.VIEW_ALL_ANALYTICS):
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
     from analytics import get_sentiment_trends
     return await get_sentiment_trends(db)
 
 @api_router.get("/manager/analytics/leadership-insights")
 async def get_leadership_dashboard(current_user: User = Depends(get_current_user)):
+    """Manager only: Get leadership insights and recommendations"""
+    user_role = Role(current_user.role)
+    if not has_permission(user_role, Permission.VIEW_ALL_ANALYTICS):
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
     from analytics import get_leadership_insights
     return await get_leadership_insights(db)
+
+# Auditor-specific routes
+@api_router.get("/auditor/assigned-audits")
+async def get_assigned_audits(current_user: User = Depends(get_current_user)):
+    """Auditor only: Get audits assigned to current user"""
+    user_role = Role(current_user.role)
+    if not has_permission(user_role, Permission.VIEW_ASSIGNED_AUDITS):
+        raise HTTPException(status_code=403, detail="Auditor access required")
+    
+    # Get audits where agent_number matches user's team/assignment
+    # For now, filter by agent_number = user.id or team_id
+    audits = await db.audio_audits.find(
+        {"agent_number": current_user.id},
+        {"_id": 0}
+    ).sort("upload_date", -1).to_list(100)
+    
+    for audit in audits:
+        if isinstance(audit.get("upload_date"), str):
+            audit["upload_date"] = datetime.fromisoformat(audit["upload_date"])
+        if isinstance(audit.get("call_date"), str):
+            audit["call_date"] = datetime.fromisoformat(audit["call_date"])
+    
+    return audits
+
+@api_router.get("/auditor/my-metrics")
+async def get_auditor_metrics(current_user: User = Depends(get_current_user)):
+    """Auditor only: Get personal performance metrics"""
+    user_role = Role(current_user.role)
+    if not has_permission(user_role, Permission.VIEW_OWN_METRICS):
+        raise HTTPException(status_code=403, detail="Auditor access required")
+    
+    # Calculate metrics for current auditor
+    pipeline = [
+        {"$match": {"agent_number": current_user.id, "status": "completed"}},
+        {
+            "$group": {
+                "_id": None,
+                "total_calls": {"$sum": 1},
+                "avg_score": {"$avg": "$overall_score"},
+                "site_visits": {
+                    "$sum": {"$cond": [{"$eq": ["$analysis.site_visit_confirmed", True]}, 1, 0]}
+                },
+                "qualified_leads": {
+                    "$sum": {"$cond": [{"$eq": ["$analysis.lead_qualified", True]}, 1, 0]}
+                }
+            }
+        }
+    ]
+    
+    results = await db.audio_audits.aggregate(pipeline).to_list(1)
+    
+    if results:
+        stats = results[0]
+        return {
+            "auditor_id": current_user.id,
+            "auditor_name": current_user.full_name,
+            "total_calls": stats["total_calls"],
+            "avg_score": round(stats["avg_score"], 2),
+            "site_visits_confirmed": stats["site_visits"],
+            "leads_qualified": stats["qualified_leads"],
+            "conversion_rate": round((stats["site_visits"] / stats["total_calls"] * 100), 2) if stats["total_calls"] > 0 else 0
+        }
+    
+    return {
+        "auditor_id": current_user.id,
+        "auditor_name": current_user.full_name,
+        "total_calls": 0,
+        "avg_score": 0,
+        "site_visits_confirmed": 0,
+        "leads_qualified": 0,
+        "conversion_rate": 0
+    }
 
 # Include router
 app.include_router(api_router)
