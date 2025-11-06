@@ -6,7 +6,7 @@ import os
 import tempfile
 
 class TelecallingAuditorAPITester:
-    def __init__(self, base_url="https://teletracker-4.preview.emergentagent.com/api"):
+    def __init__(self, base_url="https://voiceaudit-pro.preview.emergentagent.com/api"):
         self.base_url = base_url
         self.token = None
         self.user_data = None
