@@ -256,22 +256,19 @@ export default function AdminDashboard() {
 
                 <div className="space-y-2">
                   <Label htmlFor="role">Role</Label>
-                  <Select 
+                  <SafeSelect 
                     value={formData.role} 
                     onValueChange={(value) => {
                       console.log('Role selected:', value);
                       setFormData({ ...formData, role: value });
                     }}
+                    placeholder="Select role"
+                    testId="user-role-select"
                   >
-                    <SelectTrigger data-testid="user-role-select" id="role">
-                      <SelectValue placeholder="Select role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="auditor" data-testid="role-auditor">Auditor (Team Lead)</SelectItem>
-                      <SelectItem value="manager" data-testid="role-manager">Manager</SelectItem>
-                      <SelectItem value="admin" data-testid="role-admin">Admin</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    <SafeSelectItem value="auditor" data-testid="role-auditor">Auditor (Team Lead)</SafeSelectItem>
+                    <SafeSelectItem value="manager" data-testid="role-manager">Manager</SafeSelectItem>
+                    <SafeSelectItem value="admin" data-testid="role-admin">Admin</SafeSelectItem>
+                  </SafeSelect>
                 </div>
 
                 <div className="space-y-2">
