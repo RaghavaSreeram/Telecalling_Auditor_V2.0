@@ -542,6 +542,31 @@ export default function AdminDashboard() {
                 </div>
               </CardContent>
             </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>CRM Integration</CardTitle>
+                <CardDescription>Seed mock data for testing</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button 
+                  onClick={async () => {
+                    try {
+                      const response = await axios.post(`${API}/crm/seed?count=50`);
+                      toast.success(response.data.message);
+                    } catch (error) {
+                      toast.error('Failed to seed CRM data');
+                    }
+                  }}
+                  className="w-full"
+                >
+                  Seed 50 Mock CRM Records
+                </Button>
+                <p className="text-sm text-gray-500 mt-2">
+                  Generate sample CRM records with S3 URLs, agent mappings, and sync logs for testing.
+                </p>
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
       </Tabs>
