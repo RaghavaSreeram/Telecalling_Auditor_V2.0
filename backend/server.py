@@ -697,7 +697,8 @@ async def export_analytics_report(
     if current_user.role not in ["admin", "manager"]:
         raise HTTPException(status_code=403, detail="Manager or Admin access required")
     
-    from fastapi.responses import StreamingResponse
+    from fastapi.responses import StreamingResponse, PlainTextResponse
+    from datetime import datetime
     import io
     import csv
     
