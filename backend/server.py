@@ -1241,7 +1241,7 @@ async def create_audit_form(form_data: dict, current_user: User = Depends(get_cu
     form_dict["created_at"] = form_dict["created_at"].isoformat()
     form_dict["updated_at"] = form_dict["updated_at"].isoformat()
     
-    await db.audit_forms.insert_one(form_dict)
+    await db.audit_form_schemas.insert_one(form_dict)
     return {"message": "Form created", "form_id": form_schema.id}
 
 @api_router.get("/audit-forms")
