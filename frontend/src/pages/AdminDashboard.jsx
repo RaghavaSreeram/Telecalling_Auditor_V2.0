@@ -183,7 +183,7 @@ export default function AdminDashboard() {
                   {editingUser ? "Update user information" : "Add a new user to the system"}
                 </DialogDescription>
               </DialogHeader>
-              <form onSubmit={editingUser ? (e) => { e.preventDefault(); handleUpdateUser(editingUser.id); } : handleCreateUser} className="space-y-4">
+              <form onSubmit={editingUser ? (e) => handleUpdateUser(e, editingUser.id) : handleCreateUser} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="full_name">Full Name</Label>
                   <Input
