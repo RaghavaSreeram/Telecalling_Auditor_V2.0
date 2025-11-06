@@ -767,7 +767,7 @@ async def export_analytics_report(
         # In production, use a library like ReportLab or WeasyPrint
         from fastapi.responses import PlainTextResponse
         
-        report_text = f"Audit Analytics Report\n"
+        report_text = "Audit Analytics Report\n"
         report_text += f"Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}\n"
         report_text += f"Total Audits: {len(audits)}\n\n"
         
