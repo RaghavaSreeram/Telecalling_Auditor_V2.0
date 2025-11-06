@@ -90,7 +90,7 @@ class AgentMapping(BaseModel):
     """CRM Agent ID to App User mapping"""
     model_config = ConfigDict(extra="ignore")
     
-    id: str = Field(default_factory=lambda: str(uuid.uuid4())
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     crm_agent_id: str
     app_user_id: str
     agent_name: str
