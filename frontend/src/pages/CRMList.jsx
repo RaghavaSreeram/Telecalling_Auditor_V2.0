@@ -125,10 +125,16 @@ export default function CRMList() {
               </CardDescription>
             </div>
             {['manager', 'admin'].includes(user?.role) && (
-              <Button variant="outline" onClick={() => navigate('/crm/status')}>
-                <Activity className="w-4 h-4 mr-2" />
-                Health Status
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => navigate('/crm/import')}>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Import Call
+                </Button>
+                <Button variant="outline" onClick={() => navigate('/crm/status')}>
+                  <Activity className="w-4 h-4 mr-2" />
+                  Health Status
+                </Button>
+              </div>
             )}
           </div>
         </CardHeader>
