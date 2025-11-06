@@ -61,6 +61,8 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     full_name: str
+    role: str = "auditor"
+    team_id: Optional[str] = None
 
 class UserLogin(BaseModel):
     email: EmailStr
