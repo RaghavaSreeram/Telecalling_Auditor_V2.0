@@ -1,7 +1,7 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
-import { PhoneCall, LogOut, LayoutDashboard, FileText, Upload, FileAudio, BarChart2, User } from "lucide-react";
+import { PhoneCall, LogOut, LayoutDashboard, FileText, Upload, FileAudio, BarChart2, User, Crown, Shield } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 export default function Layout() {
@@ -18,13 +18,16 @@ export default function Layout() {
   const getMenuItems = () => {
     const items = [];
     
-    if (isManager()) {
+    if (user?.role === 'admin') {
+      items.push(
+        { path: "/admin", label: "Admin Control", icon: Crown, testId: "nav-admin" },
+        { path: "/manager", label: "Analytics", icon: BarChart2, testId: "nav-manager" }
+      );
+    } else if (isManager()) {
       items.push(
         { path: "/manager", label: "Manager Analytics", icon: BarChart2, testId: "nav-manager" }
       );
-    }
-    
-    if (isAuditor()) {
+    } else if (isAuditor()) {
       items.push(
         { path: "/auditor", label: "My Performance", icon: LayoutDashboard, testId: "nav-auditor" }
       );
