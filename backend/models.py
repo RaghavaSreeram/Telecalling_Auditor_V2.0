@@ -73,6 +73,7 @@ class AuditFormField(BaseModel):
     min_value: Optional[float] = None
     max_value: Optional[float] = None
     weight: Optional[float] = 1.0  # For scoring calculations
+    critical: bool = False  # If true, failure results in non-compliance
 
 
 class AuditFormSchema(BaseModel):
