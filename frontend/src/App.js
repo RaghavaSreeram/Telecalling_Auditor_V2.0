@@ -10,6 +10,7 @@ import AuditResults from "./pages/AuditResults";
 import AuditDetail from "./pages/AuditDetail";
 import ManagerDashboard from "./pages/ManagerDashboard";
 import AuditorDashboard from "./pages/AuditorDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
 import Layout from "./components/Layout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Toaster } from "./components/ui/sonner";
