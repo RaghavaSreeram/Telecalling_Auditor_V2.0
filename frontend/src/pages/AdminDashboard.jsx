@@ -284,16 +284,16 @@ export default function AdminDashboard() {
 
                 <div className="space-y-2">
                   <Label htmlFor="status">Status</Label>
-                  <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
-                    <SelectTrigger data-testid="user-status-select">
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="inactive">Inactive</SelectItem>
-                      <SelectItem value="suspended">Suspended</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <SafeSelect 
+                    value={formData.status} 
+                    onValueChange={(value) => setFormData({ ...formData, status: value })}
+                    placeholder="Select status"
+                    testId="user-status-select"
+                  >
+                    <SafeSelectItem value="active">Active</SafeSelectItem>
+                    <SafeSelectItem value="inactive">Inactive</SafeSelectItem>
+                    <SafeSelectItem value="suspended">Suspended</SafeSelectItem>
+                  </SafeSelect>
                 </div>
 
                 <div className="flex justify-end space-x-2">
