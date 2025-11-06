@@ -889,6 +889,27 @@ async def import_call_reference(call_data: dict, current_user: User = Depends(ge
     call_id = await audit_service.create_call_reference(call_data)
     return {"message": "Call reference imported", "call_id": call_id}
 
+@api_router.get("/call-references")
+async def get_call_references(
+    limit: int = 10,
+    sort: str = "imported_at:desc",
+    current_user: User = Depends(get_current_user)
+):
+    """Get recent call references"""
+    if current_user.role not in ["admin", "manager"]:
+        raise HTTPException(status_code=403, detail="Admin or Manager access required")
+    
+    # Parse sort parameter
+    sort_field, sort_order = sort.split(":") if ":" in sort else ("imported_at", "desc")
+    sort_direction = -1 if sort_order == "desc" else 1
+    
+    references = await db.call_references.find(
+        {}, 
+        {"_id": 0}
+    ).sort(sort_field, sort_direction).limit(limit).to_list(limit)
+    
+    return {"references": references}
+
 @api_router.post("/audits/auto-assign")
 async def auto_assign_audits(team_id: str = None, current_user: User = Depends(get_current_user)):
     """Auto-assign unassigned calls to auditors"""
