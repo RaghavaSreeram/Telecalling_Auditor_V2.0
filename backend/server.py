@@ -15,6 +15,7 @@ import jwt
 import requests
 import json
 from openai import OpenAI
+from rbac import Role, Permission, has_permission, require_role, get_role_permissions
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
