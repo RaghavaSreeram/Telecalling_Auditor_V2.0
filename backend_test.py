@@ -317,6 +317,395 @@ class TelecallingAuditorAPITester:
         self.token = original_token
         return success
 
+    # ============================================================================
+    # CRM Integration Tests
+    # ============================================================================
+    
+    def test_admin_login(self):
+        """Login as admin for CRM tests"""
+        admin_credentials = {
+            "email": "admin@example.com",
+            "password": "admin123"
+        }
+        
+        success, response = self.run_test(
+            "Admin Login",
+            "POST",
+            "auth/login",
+            200,
+            data=admin_credentials
+        )
+        
+        if success and 'access_token' in response:
+            self.token = response['access_token']
+            self.user_data = response['user']
+            print(f"   Logged in as: {self.user_data.get('role', 'unknown')} - {self.user_data.get('email', 'unknown')}")
+            return True
+        else:
+            # Try to register admin if login fails
+            admin_user_data = {
+                "email": "admin@example.com",
+                "password": "admin123",
+                "full_name": "Admin User",
+                "role": "admin"
+            }
+            
+            success, response = self.run_test(
+                "Admin Registration",
+                "POST",
+                "auth/register",
+                200,
+                data=admin_user_data
+            )
+            
+            if success and 'access_token' in response:
+                self.token = response['access_token']
+                self.user_data = response['user']
+                print(f"   Registered and logged in as: {self.user_data.get('role', 'unknown')}")
+                return True
+        
+        return False
+
+    def test_crm_seed_data(self):
+        """Test seeding CRM mock data"""
+        success, response = self.run_test(
+            "Seed CRM Data",
+            "POST",
+            "crm/seed?count=50",
+            200
+        )
+        
+        if success and response.get('success'):
+            print(f"   Created {response.get('records_created', 0)} CRM records")
+            print(f"   Created {response.get('logs_created', 0)} sync logs")
+            return True
+        return False
+
+    def test_crm_list_calls(self):
+        """Test listing CRM calls with pagination"""
+        success, response = self.run_test(
+            "List CRM Calls",
+            "GET",
+            "crm/calls?page=1&page_size=10",
+            200
+        )
+        
+        if success and 'records' in response:
+            records = response['records']
+            print(f"   Found {len(records)} records (page 1)")
+            print(f"   Total records: {response.get('total', 0)}")
+            print(f"   Total pages: {response.get('total_pages', 0)}")
+            
+            # Verify record structure
+            if records:
+                record = records[0]
+                required_fields = ['call_id', 'crm_user_id', 'agent_id', 'agent_name', 
+                                 'campaign_name', 'call_datetime', 'recording_url', 
+                                 'transcript_status', 'sync_status', 'last_sync_at']
+                
+                missing_fields = [field for field in required_fields if field not in record]
+                if missing_fields:
+                    print(f"   ⚠️  Missing fields: {missing_fields}")
+                    return False
+                
+                # Store a call_id for detail tests
+                self.test_call_id = record['call_id']
+                print(f"   Sample call_id: {self.test_call_id}")
+            
+            return True
+        return False
+
+    def test_crm_search_filter(self):
+        """Test CRM calls search and filtering"""
+        # Test search
+        success1, response1 = self.run_test(
+            "Search CRM Calls",
+            "GET",
+            "crm/calls?search=CRM",
+            200
+        )
+        
+        # Test sync status filter
+        success2, response2 = self.run_test(
+            "Filter by Sync Status",
+            "GET",
+            "crm/calls?sync_status=synced",
+            200
+        )
+        
+        # Test transcript status filter
+        success3, response3 = self.run_test(
+            "Filter by Transcript Status",
+            "GET",
+            "crm/calls?transcript_status=available",
+            200
+        )
+        
+        if success1 and success2 and success3:
+            print(f"   Search results: {len(response1.get('records', []))} records")
+            print(f"   Synced records: {len(response2.get('records', []))} records")
+            print(f"   Available transcripts: {len(response3.get('records', []))} records")
+            return True
+        return False
+
+    def test_crm_call_detail(self):
+        """Test getting CRM call detail"""
+        if not hasattr(self, 'test_call_id'):
+            print("❌ No call_id available for detail test")
+            return False
+        
+        success, response = self.run_test(
+            "Get CRM Call Detail",
+            "GET",
+            f"crm/calls/{self.test_call_id}",
+            200
+        )
+        
+        if success and 'record' in response:
+            record = response['record']
+            sync_logs = response.get('sync_logs', [])
+            agent_mapping = response.get('agent_mapping')
+            audit_info = response.get('audit_info')
+            
+            print(f"   Call ID: {record.get('call_id')}")
+            print(f"   Agent: {record.get('agent_name')} ({record.get('agent_id')})")
+            print(f"   Sync logs: {len(sync_logs)} entries")
+            print(f"   Agent mapping: {'Found' if agent_mapping else 'Not found'}")
+            print(f"   Audit info: {'Linked' if audit_info else 'No audit'}")
+            
+            # Verify sync logs structure
+            if sync_logs:
+                log = sync_logs[0]
+                required_log_fields = ['action', 'status', 'timestamp']
+                missing_log_fields = [field for field in required_log_fields if field not in log]
+                if missing_log_fields:
+                    print(f"   ⚠️  Missing log fields: {missing_log_fields}")
+                    return False
+            
+            return True
+        return False
+
+    def test_crm_resync(self):
+        """Test CRM call resync (Manager/Admin only)"""
+        if not hasattr(self, 'test_call_id'):
+            print("❌ No call_id available for resync test")
+            return False
+        
+        success, response = self.run_test(
+            "Resync CRM Call",
+            "POST",
+            f"crm/calls/{self.test_call_id}/resync",
+            200
+        )
+        
+        if success and response.get('status') == 'success':
+            print(f"   Resync result: {response.get('message')}")
+            return True
+        return False
+
+    def test_crm_validate_mapping(self):
+        """Test CRM agent mapping validation"""
+        if not hasattr(self, 'test_call_id'):
+            print("❌ No call_id available for mapping validation test")
+            return False
+        
+        success, response = self.run_test(
+            "Validate CRM Mapping",
+            "POST",
+            f"crm/calls/{self.test_call_id}/validate-mapping",
+            200
+        )
+        
+        if success:
+            status = response.get('status')
+            message = response.get('message')
+            print(f"   Validation status: {status}")
+            print(f"   Message: {message}")
+            
+            if status in ['success', 'warning']:
+                return True
+        return False
+
+    def test_crm_health_stats(self):
+        """Test CRM health statistics"""
+        success, response = self.run_test(
+            "Get CRM Health Stats",
+            "GET",
+            "crm/health",
+            200
+        )
+        
+        if success:
+            expected_fields = ['total_records', 'records_synced_today', 'failures_today', 
+                             'average_latency_ms', 'pending_syncs', 'error_count', 'success_rate']
+            
+            missing_fields = [field for field in expected_fields if field not in response]
+            if missing_fields:
+                print(f"   ⚠️  Missing health fields: {missing_fields}")
+                return False
+            
+            print(f"   Total records: {response.get('total_records')}")
+            print(f"   Synced today: {response.get('records_synced_today')}")
+            print(f"   Success rate: {response.get('success_rate')}%")
+            print(f"   Avg latency: {response.get('average_latency_ms')}ms")
+            return True
+        return False
+
+    def test_crm_health_trends(self):
+        """Test CRM health trends"""
+        success, response = self.run_test(
+            "Get CRM Health Trends",
+            "GET",
+            "crm/health/trends?days=7",
+            200
+        )
+        
+        if success and 'trends' in response:
+            trends = response['trends']
+            print(f"   Trend data points: {len(trends)} days")
+            
+            if trends:
+                trend = trends[0]
+                required_trend_fields = ['date', 'success_count', 'failure_count', 'total_records']
+                missing_trend_fields = [field for field in required_trend_fields if field not in trend]
+                if missing_trend_fields:
+                    print(f"   ⚠️  Missing trend fields: {missing_trend_fields}")
+                    return False
+                
+                print(f"   Sample trend: {trend['date']} - {trend['total_records']} records")
+            
+            return True
+        return False
+
+    def test_crm_retry_failed(self):
+        """Test retrying failed syncs"""
+        success, response = self.run_test(
+            "Retry Failed Syncs",
+            "POST",
+            "crm/retry-failed",
+            200
+        )
+        
+        if success:
+            success_count = response.get('success_count', 0)
+            failure_count = response.get('failure_count', 0)
+            total_attempted = response.get('total_attempted', 0)
+            
+            print(f"   Attempted: {total_attempted} records")
+            print(f"   Successful: {success_count}")
+            print(f"   Failed: {failure_count}")
+            return True
+        return False
+
+    def test_crm_rbac_auditor(self):
+        """Test RBAC for auditor role"""
+        # Create auditor user
+        auditor_data = {
+            "email": f"auditor_{datetime.now().strftime('%H%M%S')}@example.com",
+            "password": "auditor123",
+            "full_name": "Test Auditor",
+            "role": "auditor",
+            "team_id": "team_1"
+        }
+        
+        success, response = self.run_test(
+            "Register Auditor",
+            "POST",
+            "auth/register",
+            200,
+            data=auditor_data
+        )
+        
+        if not success:
+            print("❌ Failed to create auditor user")
+            return False
+        
+        # Save admin token
+        admin_token = self.token
+        
+        # Login as auditor
+        auditor_token = response['access_token']
+        self.token = auditor_token
+        
+        # Test auditor can view calls (should be filtered)
+        success1, response1 = self.run_test(
+            "Auditor View Calls",
+            "GET",
+            "crm/calls",
+            200
+        )
+        
+        # Test auditor cannot resync (should get 403)
+        success2, response2 = self.run_test(
+            "Auditor Resync (Should Fail)",
+            "POST",
+            f"crm/calls/{getattr(self, 'test_call_id', 'dummy')}/resync",
+            403
+        )
+        
+        # Restore admin token
+        self.token = admin_token
+        
+        if success1 and success2:
+            print(f"   Auditor sees {len(response1.get('records', []))} records (filtered)")
+            print("   Auditor correctly denied resync access")
+            return True
+        return False
+
+    def test_crm_rbac_manager(self):
+        """Test RBAC for manager role"""
+        # Create manager user
+        manager_data = {
+            "email": f"manager_{datetime.now().strftime('%H%M%S')}@example.com",
+            "password": "manager123",
+            "full_name": "Test Manager",
+            "role": "manager"
+        }
+        
+        success, response = self.run_test(
+            "Register Manager",
+            "POST",
+            "auth/register",
+            200,
+            data=manager_data
+        )
+        
+        if not success:
+            print("❌ Failed to create manager user")
+            return False
+        
+        # Save admin token
+        admin_token = self.token
+        
+        # Login as manager
+        manager_token = response['access_token']
+        self.token = manager_token
+        
+        # Test manager can view all calls
+        success1, response1 = self.run_test(
+            "Manager View Calls",
+            "GET",
+            "crm/calls",
+            200
+        )
+        
+        # Test manager can resync
+        success2, response2 = self.run_test(
+            "Manager Resync",
+            "POST",
+            f"crm/calls/{getattr(self, 'test_call_id', 'dummy')}/resync",
+            200
+        )
+        
+        # Restore admin token
+        self.token = admin_token
+        
+        if success1 and success2:
+            print(f"   Manager sees {len(response1.get('records', []))} records (all)")
+            print("   Manager successfully performed resync")
+            return True
+        return False
+
 def main():
     print("🚀 Starting Telecalling Auditor API Tests")
     print("=" * 50)
