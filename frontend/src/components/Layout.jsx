@@ -37,7 +37,8 @@ export default function Layout() {
     items.push(
       { path: "/scripts", label: "Scripts", icon: FileText, testId: "nav-scripts" },
       { path: "/upload", label: "Upload Audio", icon: Upload, testId: "nav-upload" },
-      { path: "/audits", label: "Audit Results", icon: FileAudio, testId: "nav-audits" }
+      { path: "/audits", label: "Audit Results", icon: FileAudio, testId: "nav-audits" },
+      { path: "/crm", label: "CRM Integration", icon: Database, testId: "nav-crm" }
     );
     
     return items;
