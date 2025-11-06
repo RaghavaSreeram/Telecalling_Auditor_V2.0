@@ -97,8 +97,9 @@ export default function Login() {
           <div className="mt-6 p-4 bg-blue-50 rounded-lg">
             <p className="text-xs font-semibold text-blue-900 mb-2">Test Accounts:</p>
             <div className="text-xs text-blue-800 space-y-1">
-              <p>• Auditor: auditor@radiance.com / auditor123</p>
+              <p>• Admin: admin@radiance.com / admin123</p>
               <p>• Manager: manager@radiance.com / manager123</p>
+              <p>• Auditor: auditor@radiance.com / auditor123</p>
             </div>
           </div>
         </CardContent>
