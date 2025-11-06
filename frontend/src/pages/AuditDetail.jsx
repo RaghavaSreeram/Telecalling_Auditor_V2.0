@@ -415,6 +415,110 @@ export default function AuditDetail() {
           <p className="text-gray-700">{analysis.summary}</p>
         </CardContent>
       </Card>
+
+      {/* Auditor Feedback Summary */}
+      {audit.auditor_comments && (
+        <Card className="mt-6 border-2 border-indigo-200 bg-indigo-50">
+          <CardHeader className="bg-indigo-100">
+            <CardTitle className="flex items-center text-indigo-800">
+              <MessageSquare className="w-5 h-5 mr-2" />
+              Auditor Feedback Summary
+            </CardTitle>
+            <CardDescription>Written comments and notes from the auditor</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="space-y-4">
+              {/* Audit Metadata */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pb-4 border-b border-indigo-200">
+                {audit.submitted_at && (
+                  <div>
+                    <span className="text-xs font-semibold text-indigo-600 uppercase">Submitted On</span>
+                    <p className="text-sm font-medium mt-1">
+                      {format(new Date(audit.submitted_at), "MMM dd, yyyy 'at' HH:mm")}
+                    </p>
+                  </div>
+                )}
+                {audit.auditor_name && (
+                  <div>
+                    <span className="text-xs font-semibold text-indigo-600 uppercase">Reviewed By</span>
+                    <p className="text-sm font-medium mt-1 flex items-center">
+                      <Badge variant="secondary" className="mr-2">Auditor</Badge>
+                      {audit.auditor_name}
+                    </p>
+                  </div>
+                )}
+                {audit.compliance_result && (
+                  <div>
+                    <span className="text-xs font-semibold text-indigo-600 uppercase">Compliance Status</span>
+                    <Badge className={`mt-1 ${
+                      audit.compliance_result === 'PASS' 
+                        ? 'bg-green-500 text-white' 
+                        : 'bg-red-500 text-white'
+                    }`}>
+                      {audit.compliance_result === 'PASS' ? '✓ PASSED' : '✗ FAILED'}
+                    </Badge>
+                  </div>
+                )}
+              </div>
+
+              {/* Auditor Comments */}
+              <div>
+                <h4 className="font-semibold text-indigo-800 mb-3 flex items-center">
+                  <span className="text-lg mr-2">💬</span>
+                  Auditor's Remarks
+                </h4>
+                <div className="bg-white p-4 rounded-lg border border-indigo-200 shadow-sm">
+                  <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
+                    {audit.auditor_comments}
+                  </p>
+                </div>
+              </div>
+
+              {/* Flags if any */}
+              {audit.flags && audit.flags.length > 0 && (
+                <div>
+                  <h4 className="font-semibold text-indigo-800 mb-3">Flags & Highlights</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {audit.flags.map((flag, idx) => (
+                      <Badge key={idx} variant="outline" className="text-sm">
+                        {flag.replace(/_/g, ' ').toUpperCase()}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Review Status if applicable */}
+              {audit.review_status && (
+                <div className="pt-4 border-t border-indigo-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-semibold text-indigo-600 uppercase">Review Status</span>
+                      <p className="text-sm font-medium mt-1">
+                        <Badge className={
+                          audit.review_status === 'approved' ? 'bg-green-500' :
+                          audit.review_status === 'rejected' ? 'bg-red-500' :
+                          'bg-yellow-500'
+                        }>
+                          {audit.review_status.toUpperCase()}
+                        </Badge>
+                      </p>
+                    </div>
+                    {audit.reviewed_by && audit.reviewed_at && (
+                      <div className="text-right">
+                        <span className="text-xs text-indigo-600">Reviewed by {audit.reviewed_by}</span>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {format(new Date(audit.reviewed_at), "MMM dd, yyyy 'at' HH:mm")}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
