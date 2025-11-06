@@ -693,6 +693,13 @@ async def export_analytics_report(
     end_date: Optional[str] = None,
     current_user: User = Depends(get_current_user)
 ):
+
+@api_router.get("/analytics/export-test")
+async def export_analytics_report_test(
+    format: str = "csv",
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+):
     """Export analytics report in CSV or PDF format"""
     if current_user.role not in ["admin", "manager"]:
         raise HTTPException(status_code=403, detail="Manager or Admin access required")
