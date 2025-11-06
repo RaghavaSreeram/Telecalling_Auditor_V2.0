@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
 import "@/App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import axios from "axios";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Scripts from "./pages/Scripts";
@@ -9,7 +9,9 @@ import UploadAudio from "./pages/UploadAudio";
 import AuditResults from "./pages/AuditResults";
 import AuditDetail from "./pages/AuditDetail";
 import ManagerDashboard from "./pages/ManagerDashboard";
+import AuditorDashboard from "./pages/AuditorDashboard";
 import Layout from "./components/Layout";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Toaster } from "./components/ui/sonner";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -29,26 +31,26 @@ axios.interceptors.request.use(
   }
 );
 
-function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(true);
+// Role-based redirect component
+const RoleBasedRedirect = () => {
+  const { user } = useAuth();
+  
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  // Redirect based on role
+  if (user.role === 'manager' || user.role === 'admin') {
+    return <Navigate to="/manager" replace />;
+  } else if (user.role === 'auditor') {
+    return <Navigate to="/auditor" replace />;
+  }
+  
+  return <Navigate to="/login" replace />;
+};
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      const token = localStorage.getItem("token");
-      if (token) {
-        try {
-          await axios.get(`${API}/auth/me`);
-          setIsAuthenticated(true);
-        } catch (error) {
-          localStorage.removeItem("token");
-          setIsAuthenticated(false);
-        }
-      }
-      setLoading(false);
-    };
-    checkAuth();
-  }, []);
+function AppRoutes() {
+  const { user, loading } = useAuth();
 
   if (loading) {
     return (
@@ -59,40 +61,63 @@ function App() {
   }
 
   return (
-    <div className="App">
-      <BrowserRouter>
-        <Routes>
+    <BrowserRouter>
+      <Routes>
+        <Route
+          path="/login"
+          element={!user ? <Login /> : <RoleBasedRedirect />}
+        />
+        
+        <Route
+          path="/"
+          element={
+            user ? <Layout /> : <Navigate to="/login" replace />
+          }
+        >
+          <Route index element={<RoleBasedRedirect />} />
+          
+          {/* Auditor Routes */}
           <Route
-            path="/login"
+            path="auditor"
             element={
-              !isAuthenticated ? (
-                <Login setIsAuthenticated={setIsAuthenticated} />
-              ) : (
-                <Navigate to="/" />
-              )
+              <ProtectedRoute requiredRole="auditor">
+                <AuditorDashboard />
+              </ProtectedRoute>
             }
           />
+          
+          {/* Manager Routes */}
           <Route
-            path="/"
+            path="manager"
             element={
-              isAuthenticated ? (
-                <Layout setIsAuthenticated={setIsAuthenticated} />
-              ) : (
-                <Navigate to="/login" />
-              )
+              <ProtectedRoute requiredRole="manager">
+                <ManagerDashboard />
+              </ProtectedRoute>
             }
-          >
-            <Route index element={<Dashboard />} />
-            <Route path="scripts" element={<Scripts />} />
-            <Route path="upload" element={<UploadAudio />} />
-            <Route path="audits" element={<AuditResults />} />
-            <Route path="audits/:auditId" element={<AuditDetail />} />
-            <Route path="manager" element={<ManagerDashboard />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-      <Toaster position="top-right" />
-    </div>
+          />
+          
+          {/* Shared Routes (Both roles) */}
+          <Route path="scripts" element={<Scripts />} />
+          <Route path="upload" element={<UploadAudio />} />
+          <Route path="audits" element={<AuditResults />} />
+          <Route path="audits/:auditId" element={<AuditDetail />} />
+          
+          {/* Legacy dashboard route */}
+          <Route path="dashboard" element={<Dashboard />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <div className="App">
+        <AppRoutes />
+        <Toaster position="top-right" />
+      </div>
+    </AuthProvider>
   );
 }
 
