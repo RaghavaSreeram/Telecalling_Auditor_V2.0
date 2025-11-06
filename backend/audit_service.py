@@ -178,10 +178,28 @@ class AuditService:
     
     async def submit_audit(self, assignment_id: str, response_data: Dict[str, Any]) -> str:
         """Submit completed audit"""
-        # Calculate score based on form schema
-        overall_score = self._calculate_score(response_data.get("responses", {}))
+        # Get form schema for weighted scoring and compliance check
+        form_schema_id = response_data.get("form_schema_id", "default")
+        form_schema = await self.db.audit_form_schemas.find_one(
+            {"id": form_schema_id}, 
+            {"_id": 0}
+        )
+        
+        # Calculate weighted score based on form schema
+        overall_score = await self._calculate_weighted_score(
+            response_data.get("responses", {}), 
+            form_schema
+        )
+        
+        # Determine compliance result
+        compliance_result = await self._check_compliance(
+            response_data.get("responses", {}),
+            overall_score,
+            form_schema
+        )
         
         response_data["overall_score"] = overall_score
+        response_data["compliance_result"] = compliance_result
         response_data["status"] = AuditStatus.COMPLETED.value
         response_data["submitted_at"] = datetime.now(timezone.utc).isoformat()
         
@@ -212,9 +230,66 @@ class AuditService:
         
         return response_id
     
-    def _calculate_score(self, responses: Dict[str, Any]) -> float:
-        """Calculate overall score from form responses"""
-        # Simplified scoring - should use form schema weights
+    async def _calculate_weighted_score(self, responses: Dict[str, Any], form_schema: Optional[Dict]) -> float:
+        """Calculate weighted score from form responses using schema weights"""
+        if not form_schema or "fields" not in form_schema:
+            # Fallback to simple average if no schema
+            return self._calculate_simple_score(responses)
+        
+        total_weighted_score = 0.0
+        total_possible_score = 0.0
+        
+        for field in form_schema["fields"]:
+            field_id = field["id"]
+            field_type = field["type"]
+            weight = field.get("weight", 1.0)
+            
+            if field_id not in responses:
+                continue
+            
+            value = responses[field_id]
+            normalized_value = self._normalize_field_value(value, field_type, field)
+            
+            # Calculate contribution to score
+            max_value = field.get("max_value", 10.0) if field_type in ["number", "rating"] else 1.0
+            field_score = (normalized_value / max_value) * weight
+            
+            total_weighted_score += field_score
+            total_possible_score += weight
+        
+        # Calculate percentage score out of 100
+        if total_possible_score > 0:
+            percentage_score = (total_weighted_score / total_possible_score) * 100
+            return round(percentage_score, 2)
+        
+        return 0.0
+    
+    def _normalize_field_value(self, value: Any, field_type: str, field: Dict) -> float:
+        """Normalize field value to numeric score"""
+        if field_type in ["number", "rating"]:
+            return float(value) if isinstance(value, (int, float)) else 0.0
+        
+        elif field_type == "checkbox":
+            # Checkbox: 1 if true, 0 if false
+            return 1.0 if value else 0.0
+        
+        elif field_type == "select":
+            # For select, could map options to scores or use index
+            # Here we'll assume yes/no or similar binary options
+            if isinstance(value, str):
+                # Map common values
+                positive_values = ["yes", "true", "pass", "compliant", "excellent", "good"]
+                return 1.0 if value.lower() in positive_values else 0.0
+            return float(value) if isinstance(value, (int, float)) else 0.0
+        
+        elif field_type == "text":
+            # Text fields don't contribute to score
+            return 0.0
+        
+        return 0.0
+    
+    def _calculate_simple_score(self, responses: Dict[str, Any]) -> float:
+        """Fallback simple scoring method"""
         total_score = 0
         count = 0
         
@@ -224,6 +299,49 @@ class AuditService:
                 count += 1
         
         return (total_score / count) if count > 0 else 0.0
+    
+    async def _check_compliance(self, responses: Dict[str, Any], overall_score: float, 
+                                form_schema: Optional[Dict]) -> str:
+        """Check if audit passes compliance thresholds"""
+        if not form_schema:
+            return "PASS"  # Default to pass if no schema
+        
+        passing_score = form_schema.get("passing_score", 70.0)
+        
+        # Check 1: Overall score threshold
+        if overall_score < passing_score:
+            return "FAIL"
+        
+        # Check 2: Critical fields must pass
+        if "fields" in form_schema:
+            for field in form_schema["fields"]:
+                if not field.get("critical", False):
+                    continue
+                
+                field_id = field["id"]
+                if field_id not in responses:
+                    return "FAIL"  # Missing critical field response
+                
+                value = responses[field_id]
+                field_type = field["type"]
+                
+                # Check if critical field passes
+                if field_type == "checkbox":
+                    if not value:  # Checkbox must be checked
+                        return "FAIL"
+                
+                elif field_type in ["number", "rating"]:
+                    min_value = field.get("min_value", 0)
+                    if isinstance(value, (int, float)) and value < min_value:
+                        return "FAIL"
+                
+                elif field_type == "select":
+                    # For select, check if value is in acceptable options
+                    negative_values = ["no", "false", "fail", "non-compliant", "poor"]
+                    if isinstance(value, str) and value.lower() in negative_values:
+                        return "FAIL"
+        
+        return "PASS"
     
     async def get_dashboard_stats(self, user_id: str, role: str) -> Dict[str, Any]:
         """Get dashboard statistics based on role"""
