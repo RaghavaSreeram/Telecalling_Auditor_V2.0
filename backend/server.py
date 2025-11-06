@@ -629,40 +629,36 @@ async def get_user_permissions(current_user: User = Depends(get_current_user)):
 # Manager Dashboard Analytics Routes (Manager/Admin only)
 @api_router.get("/manager/analytics/overview")
 async def get_manager_overview(current_user: User = Depends(get_current_user)):
-    """Manager only: Get overall analytics overview"""
-    user_role = Role(current_user.role)
-    if not has_permission(user_role, Permission.VIEW_ALL_ANALYTICS):
-        raise HTTPException(status_code=403, detail="Manager access required")
+    """Manager/Admin: Get overall analytics overview"""
+    if current_user.role not in ["manager", "admin"]:
+        raise HTTPException(status_code=403, detail="Manager or Admin access required")
     
     from analytics import get_overall_analytics
     return await get_overall_analytics(db)
 
 @api_router.get("/manager/analytics/agents")
 async def get_agent_performance(agent_id: str = None, current_user: User = Depends(get_current_user)):
-    """Manager only: Get agent performance metrics"""
-    user_role = Role(current_user.role)
-    if not has_permission(user_role, Permission.VIEW_ALL_ANALYTICS):
-        raise HTTPException(status_code=403, detail="Manager access required")
+    """Manager/Admin: Get agent performance metrics"""
+    if current_user.role not in ["manager", "admin"]:
+        raise HTTPException(status_code=403, detail="Manager or Admin access required")
     
     from analytics import calculate_agent_performance
     return await calculate_agent_performance(db, agent_id)
 
 @api_router.get("/manager/analytics/sentiment")
 async def get_sentiment_analysis(current_user: User = Depends(get_current_user)):
-    """Manager only: Get sentiment analysis"""
-    user_role = Role(current_user.role)
-    if not has_permission(user_role, Permission.VIEW_ALL_ANALYTICS):
-        raise HTTPException(status_code=403, detail="Manager access required")
+    """Manager/Admin: Get sentiment analysis"""
+    if current_user.role not in ["manager", "admin"]:
+        raise HTTPException(status_code=403, detail="Manager or Admin access required")
     
     from analytics import get_sentiment_trends
     return await get_sentiment_trends(db)
 
 @api_router.get("/manager/analytics/leadership-insights")
 async def get_leadership_dashboard(current_user: User = Depends(get_current_user)):
-    """Manager only: Get leadership insights and recommendations"""
-    user_role = Role(current_user.role)
-    if not has_permission(user_role, Permission.VIEW_ALL_ANALYTICS):
-        raise HTTPException(status_code=403, detail="Manager access required")
+    """Manager/Admin: Get leadership insights and recommendations"""
+    if current_user.role not in ["manager", "admin"]:
+        raise HTTPException(status_code=403, detail="Manager or Admin access required")
     
     from analytics import get_leadership_insights
     return await get_leadership_insights(db)
