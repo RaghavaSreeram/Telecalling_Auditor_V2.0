@@ -1,6 +1,6 @@
 import { useState } from "react";
-import axios from "axios";
-import { API } from "../App";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -8,12 +8,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { toast } from "sonner";
 import { PhoneCall } from "lucide-react";
 
-export default function Login({ setIsAuthenticated }) {
-  const [isLogin, setIsLogin] = useState(true);
+export default function Login() {
+  const navigate = useNavigate();
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-    full_name: "",
   });
   const [loading, setLoading] = useState(false);
 
@@ -22,15 +22,19 @@ export default function Login({ setIsAuthenticated }) {
     setLoading(true);
 
     try {
-      const endpoint = isLogin ? "/auth/login" : "/auth/register";
-      const response = await axios.post(`${API}${endpoint}`, formData);
-
-      localStorage.setItem("token", response.data.access_token);
-      localStorage.setItem("user", JSON.stringify(response.data.user));
-      setIsAuthenticated(true);
-      toast.success(isLogin ? "Login successful!" : "Account created successfully!");
+      const user = await login(formData.email, formData.password);
+      toast.success("Login successful!");
+      
+      // Redirect based on role
+      if (user.role === 'manager' || user.role === 'admin') {
+        navigate('/manager');
+      } else if (user.role === 'auditor') {
+        navigate('/auditor');
+      } else {
+        navigate('/');
+      }
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Authentication failed");
+      toast.error(error.response?.data?.detail || "Login failed");
     } finally {
       setLoading(false);
     }
