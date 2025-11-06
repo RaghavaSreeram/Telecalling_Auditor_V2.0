@@ -387,3 +387,223 @@ class CRMService:
             return True
         else:
             raise Exception("CRM API timeout")
+    
+    async def seed_mock_data(self, count: int = 50) -> Dict[str, Any]:
+        """Seed database with mock CRM records"""
+        import uuid
+        
+        # Clear existing data
+        await self.db.crm_records.delete_many({})
+        await self.db.crm_sync_logs.delete_many({})
+        
+        # Ensure agent mappings exist
+        agent_mappings = await self._ensure_agent_mappings()
+        
+        # Campaigns and queues
+        campaigns = [
+            {"id": "camp_001", "name": "Q4 Property Launch"},
+            {"id": "camp_002", "name": "Luxury Apartments"},
+            {"id": "camp_003", "name": "Commercial Spaces"},
+            {"id": "camp_004", "name": "Holiday Homes"},
+            {"id": "camp_005", "name": "Rental Properties"}
+        ]
+        queues = ["Inbound Sales", "Outbound Follow-up", "Lead Qualification", "Property Inquiry"]
+        
+        records = []
+        now = datetime.now(timezone.utc)
+        
+        for i in range(count):
+            # Random date within last 30 days
+            days_ago = random.randint(0, 30)
+            hours_ago = random.randint(0, 23)
+            call_datetime = now - timedelta(days=days_ago, hours=hours_ago, minutes=random.randint(0, 59))
+            
+            # Select random agent and campaign
+            agent_map = random.choice(agent_mappings)
+            campaign = random.choice(campaigns)
+            queue = random.choice(queues)
+            
+            # Generate call details
+            call_id = f"CRM-{uuid.uuid4().hex[:8].upper()}"
+            duration = random.randint(120, 900)  # 2-15 minutes
+            
+            # Determine statuses (90% success, 10% issues)
+            is_successful = random.random() < 0.9
+            
+            if is_successful:
+                transcript_status = TranscriptStatus.AVAILABLE
+                sync_status = SyncStatus.SYNCED
+                transcript_url = f"https://transcripts.example.com/{call_id}.txt"
+                transcript_word_count = random.randint(150, 500)
+                transcript_last_updated = call_datetime + timedelta(minutes=5)
+                sync_error = None
+            else:
+                transcript_status = random.choice([TranscriptStatus.MISSING, TranscriptStatus.PROCESSING, TranscriptStatus.ERROR])
+                sync_status = random.choice([SyncStatus.ERROR, SyncStatus.STALE])
+                transcript_url = None
+                transcript_word_count = None
+                transcript_last_updated = None
+                sync_error = random.choice([
+                    "Timeout connecting to CRM",
+                    "Recording file not found in S3",
+                    "Transcript processing failed",
+                    "API rate limit exceeded"
+                ])
+            
+            # 70% of calls have audits
+            has_audit = random.random() < 0.7
+            audit_id = str(uuid.uuid4()) if has_audit else None
+            audit_status = random.choice(["pending", "completed"]) if has_audit else None
+            
+            # Generate S3 URL
+            bucket = "telecalling-recordings"
+            region = "us-east-1"
+            recording_url = f"https://{bucket}.s3.{region}.amazonaws.com/recordings/{call_id}.mp3"
+            recording_ref = f"s3://{bucket}/recordings/{call_id}.mp3"
+            
+            record = CRMRecord(
+                call_id=call_id,
+                crm_user_id=f"USER-{random.randint(1000, 9999)}",
+                agent_id=agent_map["crm_agent_id"],
+                agent_name=agent_map["agent_name"],
+                campaign_id=campaign["id"],
+                campaign_name=campaign["name"],
+                queue_name=queue,
+                call_datetime=call_datetime,
+                call_duration_seconds=duration,
+                recording_url=recording_url,
+                recording_ref=recording_ref,
+                recording_duration=duration,
+                transcript_status=transcript_status,
+                transcript_url=transcript_url,
+                transcript_word_count=transcript_word_count,
+                transcript_last_updated=transcript_last_updated,
+                sync_status=sync_status,
+                last_sync_at=call_datetime + timedelta(minutes=2),
+                sync_error=sync_error,
+                audit_id=audit_id,
+                audit_status=audit_status,
+                metadata={
+                    "call_direction": random.choice(["inbound", "outbound"]),
+                    "call_outcome": random.choice(["interested", "callback", "not_interested", "no_answer"]),
+                    "crm_source": "Salesforce Mock"
+                },
+                created_at=call_datetime,
+                updated_at=call_datetime + timedelta(minutes=2)
+            )
+            
+            record_dict = record.model_dump()
+            # Convert datetime to ISO strings
+            record_dict["call_datetime"] = record_dict["call_datetime"].isoformat()
+            record_dict["created_at"] = record_dict["created_at"].isoformat()
+            record_dict["updated_at"] = record_dict["updated_at"].isoformat()
+            if record_dict.get("transcript_last_updated"):
+                record_dict["transcript_last_updated"] = record_dict["transcript_last_updated"].isoformat()
+            if record_dict.get("last_sync_at"):
+                record_dict["last_sync_at"] = record_dict["last_sync_at"].isoformat()
+            
+            records.append(record_dict)
+        
+        await self.db.crm_records.insert_many(records)
+        
+        # Generate sync logs for each record
+        logs = []
+        for record in records:
+            # Pull log
+            pull_log = CRMSyncLog(
+                crm_record_id=record["id"],
+                action=SyncAction.PULL,
+                status="success" if record["sync_status"] == SyncStatus.SYNCED else "failure",
+                result="Successfully pulled from CRM" if record["sync_status"] == SyncStatus.SYNCED else "Failed to pull data",
+                error_message=record.get("sync_error"),
+                duration_ms=random.randint(100, 500),
+                timestamp=datetime.fromisoformat(record["created_at"]) + timedelta(seconds=30)
+            )
+            
+            # Map log
+            map_log = CRMSyncLog(
+                crm_record_id=record["id"],
+                action=SyncAction.MAP,
+                status="success",
+                result="Agent mapping resolved",
+                duration_ms=random.randint(50, 150),
+                timestamp=datetime.fromisoformat(record["created_at"]) + timedelta(seconds=31)
+            )
+            
+            # Save log
+            save_log = CRMSyncLog(
+                crm_record_id=record["id"],
+                action=SyncAction.SAVE,
+                status="success" if record["sync_status"] == SyncStatus.SYNCED else "failure",
+                result="Saved to database" if record["sync_status"] == SyncStatus.SYNCED else "Save failed",
+                error_message=record.get("sync_error") if record["sync_status"] != SyncStatus.SYNCED else None,
+                duration_ms=random.randint(80, 200),
+                timestamp=datetime.fromisoformat(record["created_at"]) + timedelta(seconds=32)
+            )
+            
+            logs.extend([pull_log, map_log, save_log])
+        
+        # Convert logs to dicts with ISO strings
+        log_dicts = []
+        for log in logs:
+            log_dict = log.model_dump()
+            log_dict["timestamp"] = log_dict["timestamp"].isoformat()
+            log_dicts.append(log_dict)
+        
+        await self.db.crm_sync_logs.insert_many(log_dicts)
+        
+        return {
+            "success": True,
+            "records_created": len(records),
+            "logs_created": len(log_dicts),
+            "message": f"Successfully seeded {len(records)} CRM records with {len(log_dicts)} sync logs"
+        }
+    
+    async def _ensure_agent_mappings(self) -> List[Dict[str, Any]]:
+        """Ensure agent mappings exist"""
+        existing = await self.db.agent_mappings.find({}, {"_id": 0}).to_list(length=None)
+        
+        if existing:
+            return existing
+        
+        # Fetch real users from the database
+        users = await self.db.users.find({"role": {"$in": ["auditor", "manager"]}}, {"_id": 0}).to_list(length=100)
+        
+        if not users:
+            # Create default mappings if no users exist
+            default_mappings = [
+                {
+                    "id": str(uuid.uuid4()),
+                    "crm_agent_id": f"SF-AGENT-{i:03d}",
+                    "app_user_id": str(uuid.uuid4()),
+                    "agent_name": f"Agent {chr(65+i)}",
+                    "team_id": f"team_{(i % 3) + 1}",
+                    "is_active": True,
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }
+                for i in range(10)
+            ]
+            await self.db.agent_mappings.insert_many(default_mappings)
+            return default_mappings
+        
+        # Create mappings from existing users
+        import uuid
+        mappings = []
+        for idx, user in enumerate(users[:10]):  # Limit to 10 agents
+            mapping = AgentMapping(
+                crm_agent_id=f"SF-AGENT-{idx:03d}",
+                app_user_id=user["id"],
+                agent_name=user.get("full_name", f"Agent {idx+1}"),
+                team_id=user.get("team_id", f"team_{(idx % 3) + 1}"),
+                is_active=True
+            )
+            mapping_dict = mapping.model_dump()
+            mapping_dict["created_at"] = mapping_dict["created_at"].isoformat()
+            mapping_dict["updated_at"] = mapping_dict["updated_at"].isoformat()
+            mappings.append(mapping_dict)
+        
+        if mappings:
+            await self.db.agent_mappings.insert_many(mappings)
+        
+        return mappings
