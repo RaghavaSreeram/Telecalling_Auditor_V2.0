@@ -76,13 +76,22 @@ class AuditFormField(BaseModel):
     critical: bool = False  # If true, failure results in non-compliance
 
 
+class AuditFormCategory(BaseModel):
+    """Category grouping for audit form fields"""
+    label: str
+    description: Optional[str] = None
+    fields: List[AuditFormField]
+    weight: Optional[float] = 1.0  # Category weight for scoring
+
+
 class AuditFormSchema(BaseModel):
     """Dynamic audit form schema"""
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
     description: Optional[str] = None
-    fields: List[AuditFormField]
+    fields: List[AuditFormField]  # Legacy: flat list of fields
+    categories: Optional[List[AuditFormCategory]] = None  # New: grouped categories
     total_points: float = 100.0
     passing_score: float = 70.0
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
