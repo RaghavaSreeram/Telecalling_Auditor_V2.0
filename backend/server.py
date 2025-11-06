@@ -810,7 +810,8 @@ async def export_analytics_report_test(
 ):
     """Export analytics report in CSV or PDF format (Test endpoint without auth)"""
     
-    from fastapi.responses import StreamingResponse
+    from fastapi.responses import StreamingResponse, PlainTextResponse
+    from datetime import datetime
     import io
     import csv
     
