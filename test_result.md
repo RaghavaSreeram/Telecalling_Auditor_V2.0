@@ -237,7 +237,13 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus: []
+  current_focus:
+    - "CRM Navigation - Add CRM Integration tab to left nav"
+    - "CRM List View - Paginated table with filters and search"
+    - "CRM Detail View - Detail drawer/page with rich metadata"
+    - "CRM Health Panel - Health statistics and trends"
+    - "CRM Routes - Add routing for CRM pages"
+    - "Admin Dashboard - Add CRM seed button"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
