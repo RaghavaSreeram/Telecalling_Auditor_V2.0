@@ -700,9 +700,7 @@ async def export_analytics_report_test(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None
 ):
-    """Export analytics report in CSV or PDF format"""
-    if current_user.role not in ["admin", "manager"]:
-        raise HTTPException(status_code=403, detail="Manager or Admin access required")
+    """Export analytics report in CSV or PDF format (Test endpoint without auth)"""
     
     from fastapi.responses import StreamingResponse
     import io
