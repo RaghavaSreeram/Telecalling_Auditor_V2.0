@@ -93,11 +93,11 @@ function AppRoutes() {
             }
           />
           
-          {/* Manager Routes */}
+          {/* Manager Routes - Admin also has access */}
           <Route
             path="manager"
             element={
-              <ProtectedRoute requiredRole="manager">
+              <ProtectedRoute allowedRoles={['manager', 'admin']}>
                 <ManagerDashboard />
               </ProtectedRoute>
             }
