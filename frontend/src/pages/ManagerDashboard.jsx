@@ -79,13 +79,50 @@ export default function ManagerDashboard() {
   const neutralPercent = sentiment ? (sentiment.neutral / totalSentiment * 100).toFixed(1) : 0;
   const negativePercent = sentiment ? (sentiment.negative / totalSentiment * 100).toFixed(1) : 0;
 
+  const handleExport = async (format) => {
+    try {
+      const response = await axios.get(`${API}/analytics/export?format=${format}`, {
+        responseType: 'blob'
+      });
+      
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      const extension = format === 'csv' ? 'csv' : 'txt';
+      link.setAttribute('download', `audit_report_${new Date().toISOString().split('T')[0]}.${extension}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      
+      toast.success(`Report exported successfully as ${format.toUpperCase()}`);
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast.error('Failed to export report');
+    }
+  };
+
   return (
     <div data-testid="manager-dashboard-page">
       <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2" style={{ fontFamily: 'Space Grotesk' }}>
-          Manager Dashboard
-        </h1>
-        <p className="text-gray-600">Comprehensive analytics and team performance insights</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold mb-2" style={{ fontFamily: 'Space Grotesk' }}>
+              Manager Dashboard
+            </h1>
+            <p className="text-gray-600">Comprehensive analytics and team performance insights</p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => handleExport('csv')}>
+              <Download className="w-4 h-4 mr-2" />
+              Export CSV
+            </Button>
+            <Button variant="outline" onClick={() => handleExport('pdf')}>
+              <FileText className="w-4 h-4 mr-2" />
+              Export PDF
+            </Button>
+          </div>
+        </div>
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
