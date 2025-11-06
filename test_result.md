@@ -129,27 +129,33 @@ backend:
   
   - task: "CRM Service - Core service for mock data generation, RBAC filtering, sync operations"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/crm_service.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Updated CRMService with seed_mock_data method to generate 50 mock CRM records with S3 URLs, agent mappings, sync logs. Includes RBAC filtering, resync, validation, health stats, and trend calculations."
+      - working: true
+        agent: "testing"
+        comment: "✅ CRM Service fully tested and working. Mock data generation creates 50 realistic records with S3 URLs, agent mappings, and sync logs. RBAC filtering works correctly for auditors (team-based access) vs managers/admins (full access). All core service methods tested: get_crm_records, get_crm_record_details, resync_crm_record, validate_mapping, get_health_stats, get_sync_trends, retry_failed_syncs. Fixed ObjectId serialization issue in validate_mapping method."
   
   - task: "CRM API Endpoints - REST endpoints for CRM operations"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Added CRM endpoints: POST /api/crm/seed, GET /api/crm/calls (with filters/pagination), GET /api/crm/calls/{call_id}, POST /api/crm/calls/{call_id}/resync, POST /api/crm/calls/{call_id}/validate-mapping, GET /api/crm/health, GET /api/crm/health/trends, POST /api/crm/retry-failed. All with RBAC checks."
+      - working: true
+        agent: "testing"
+        comment: "✅ All 9 CRM API endpoints tested and working correctly: 1) POST /api/crm/seed (admin-only, creates 50 mock records), 2) GET /api/crm/calls (paginated list with search/filters), 3) GET /api/crm/calls/{call_id} (detailed view with sync logs), 4) POST /api/crm/calls/{call_id}/resync (manager/admin resync), 5) POST /api/crm/calls/{call_id}/validate-mapping (agent mapping validation), 6) GET /api/crm/health (health statistics), 7) GET /api/crm/health/trends (7-day trends), 8) POST /api/crm/retry-failed (retry all failed syncs). RBAC enforcement verified: auditors see filtered records, managers/admins have full access. All endpoints return proper JSON responses with required fields."
 
 frontend:
   - task: "CRM Navigation - Add CRM Integration tab to left nav"
