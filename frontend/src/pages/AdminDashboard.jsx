@@ -77,14 +77,23 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleUpdateUser = async (userId) => {
+  const handleUpdateUser = async (e, userId) => {
+    e.preventDefault();
     try {
-      await axios.put(`${API}/admin/users/${userId}`, formData);
+      const updateData = {
+        full_name: formData.full_name,
+        role: formData.role,
+        team_id: formData.team_id,
+        status: formData.status
+      };
+      
+      await axios.put(`${API}/admin/users/${userId}`, updateData);
       toast.success("User updated successfully");
       setDialogOpen(false);
       resetForm();
       fetchAllData();
     } catch (error) {
+      console.error("Update error:", error);
       toast.error(error.response?.data?.detail || "Failed to update user");
     }
   };
