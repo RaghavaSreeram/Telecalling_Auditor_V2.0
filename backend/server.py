@@ -18,10 +18,12 @@ from openai import OpenAI
 from rbac import Role, Permission, has_permission, require_role, get_role_permissions
 from audit_service import AuditService
 from transcript_service import TranscriptService
+from crm_service import CRMService
 from models import (
     AuditAssignment, AuditResponse, CallReference, 
     AuditFormSchema, RetentionPolicy, DashboardStats
 )
+from crm_models import CRMRecord, CRMHealthStats, SyncTrendData
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
