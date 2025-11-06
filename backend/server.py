@@ -387,7 +387,9 @@ async def register(user_data: UserCreate):
     # Create user
     user = User(
         email=user_data.email,
-        full_name=user_data.full_name
+        full_name=user_data.full_name,
+        role=user_data.role,
+        team_id=user_data.team_id
     )
     
     user_dict = user.model_dump()
@@ -398,7 +400,7 @@ async def register(user_data: UserCreate):
     
     # Create access token
     access_token = create_access_token(
-        data={"sub": user.id},
+        data={"sub": user.id, "role": user.role},
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     
