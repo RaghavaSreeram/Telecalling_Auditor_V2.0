@@ -66,13 +66,34 @@ export default function AdminDashboard() {
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
+    
+    // Validation
+    if (!formData.email || !formData.password || !formData.full_name) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+    
+    if (formData.password.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    
     try {
-      await axios.post(`${API}/admin/users`, formData);
+      const createData = {
+        email: formData.email,
+        password: formData.password,
+        full_name: formData.full_name,
+        role: formData.role,
+        team_id: formData.team_id || null
+      };
+      
+      await axios.post(`${API}/admin/users`, createData);
       toast.success("User created successfully");
       setDialogOpen(false);
       resetForm();
       fetchAllData();
     } catch (error) {
+      console.error("Create error:", error);
       toast.error(error.response?.data?.detail || "Failed to create user");
     }
   };
