@@ -727,6 +727,21 @@ def main():
         ("Get Single Audit", tester.test_get_single_audit),
         ("Dashboard Stats", tester.test_dashboard_stats),
         ("Delete Script", tester.test_delete_script),
+        
+        # CRM Integration Tests
+        ("=== CRM INTEGRATION TESTS ===", lambda: True),
+        ("Admin Login", tester.test_admin_login),
+        ("Seed CRM Data", tester.test_crm_seed_data),
+        ("List CRM Calls", tester.test_crm_list_calls),
+        ("Search & Filter CRM", tester.test_crm_search_filter),
+        ("Get CRM Call Detail", tester.test_crm_call_detail),
+        ("Resync CRM Call", tester.test_crm_resync),
+        ("Validate CRM Mapping", tester.test_crm_validate_mapping),
+        ("CRM Health Stats", tester.test_crm_health_stats),
+        ("CRM Health Trends", tester.test_crm_health_trends),
+        ("Retry Failed Syncs", tester.test_crm_retry_failed),
+        ("RBAC - Auditor", tester.test_crm_rbac_auditor),
+        ("RBAC - Manager", tester.test_crm_rbac_manager),
     ]
     
     # Run all tests
