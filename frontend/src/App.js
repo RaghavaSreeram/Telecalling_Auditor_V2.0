@@ -79,12 +79,12 @@ function AppRoutes() {
         >
           <Route index element={<RoleBasedRedirect />} />
           
-          {/* Auditor Routes */}
+          {/* Admin Routes */}
           <Route
-            path="auditor"
+            path="admin"
             element={
-              <ProtectedRoute requiredRole="auditor">
-                <AuditorDashboard />
+              <ProtectedRoute requiredRole="admin">
+                <AdminDashboard />
               </ProtectedRoute>
             }
           />
@@ -95,6 +95,16 @@ function AppRoutes() {
             element={
               <ProtectedRoute requiredRole="manager">
                 <ManagerDashboard />
+              </ProtectedRoute>
+            }
+          />
+          
+          {/* Auditor Routes */}
+          <Route
+            path="auditor"
+            element={
+              <ProtectedRoute requiredRole="auditor">
+                <AuditorDashboard />
               </ProtectedRoute>
             }
           />
