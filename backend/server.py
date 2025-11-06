@@ -686,6 +686,122 @@ async def get_leadership_dashboard(current_user: User = Depends(get_current_user
     from analytics import get_leadership_insights
     return await get_leadership_insights(db)
 
+@api_router.get("/analytics/export")
+async def export_analytics_report(
+    format: str = "csv",
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Export analytics report in CSV or PDF format"""
+    if current_user.role not in ["admin", "manager"]:
+        raise HTTPException(status_code=403, detail="Manager or Admin access required")
+    
+    from fastapi.responses import StreamingResponse
+    import io
+    import csv
+    
+    # Get audit data for export
+    query = {"status": "completed"}
+    
+    # Apply date filters if provided
+    if start_date or end_date:
+        date_filter = {}
+        if start_date:
+            date_filter["$gte"] = start_date
+        if end_date:
+            date_filter["$lte"] = end_date
+        if date_filter:
+            query["processed_at"] = date_filter
+    
+    audits = await db.audits.find(query, {"_id": 0}).sort("processed_at", -1).to_list(1000)
+    
+    if format == "csv":
+        # Generate CSV
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow([
+            "Call ID", "Agent Number", "Customer Number", "Call Date",
+            "Overall Score", "Compliance Result", "Script Adherence",
+            "Communication Score", "Sentiment", "Lead Status", 
+            "Outcome Achieved", "Flags", "Processed At"
+        ])
+        
+        # Write data rows
+        for audit in audits:
+            analysis = audit.get("analysis", {})
+            flags = ", ".join(audit.get("flags", []))
+            
+            writer.writerow([
+                audit.get("id", ""),
+                audit.get("agent_number", ""),
+                audit.get("customer_number", ""),
+                audit.get("call_date", ""),
+                audit.get("overall_score", 0),
+                audit.get("compliance_result", "N/A"),
+                analysis.get("script_adherence_score", 0),
+                analysis.get("communication_score", 0),
+                analysis.get("sentiment", ""),
+                analysis.get("lead_status", ""),
+                "Yes" if analysis.get("outcome_achieved") else "No",
+                flags,
+                audit.get("processed_at", "")
+            ])
+        
+        output.seek(0)
+        
+        # Return CSV file
+        from datetime import datetime
+        filename = f"audit_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        
+        return StreamingResponse(
+            io.BytesIO(output.getvalue().encode('utf-8')),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    
+    elif format == "pdf":
+        # For PDF, we'll return a simple text-based report for now
+        # In production, use a library like ReportLab or WeasyPrint
+        from fastapi.responses import PlainTextResponse
+        
+        report_text = f"Audit Analytics Report\n"
+        report_text += f"Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}\n"
+        report_text += f"Total Audits: {len(audits)}\n\n"
+        
+        if audits:
+            total_score = sum(a.get("overall_score", 0) for a in audits)
+            avg_score = total_score / len(audits)
+            compliance_pass = sum(1 for a in audits if a.get("compliance_result") == "PASS")
+            compliance_rate = (compliance_pass / len(audits)) * 100
+            
+            report_text += f"Average Score: {avg_score:.2f}%\n"
+            report_text += f"Compliance Rate: {compliance_rate:.2f}%\n"
+            report_text += f"Compliant Audits: {compliance_pass} / {len(audits)}\n\n"
+            
+            report_text += "Recent Audits:\n"
+            report_text += "-" * 80 + "\n"
+            
+            for audit in audits[:20]:  # Show first 20
+                report_text += f"Call ID: {audit.get('id', 'N/A')}\n"
+                report_text += f"Agent: {audit.get('agent_number', 'N/A')}\n"
+                report_text += f"Score: {audit.get('overall_score', 0):.1f}%\n"
+                report_text += f"Compliance: {audit.get('compliance_result', 'N/A')}\n"
+                report_text += f"Date: {audit.get('call_date', 'N/A')}\n"
+                report_text += "-" * 80 + "\n"
+        
+        filename = f"audit_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        
+        return PlainTextResponse(
+            report_text,
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    
+    else:
+        raise HTTPException(status_code=400, detail="Invalid format. Use 'csv' or 'pdf'")
+
 # Admin-only routes
 @api_router.get("/admin/users")
 async def get_all_users(current_user: User = Depends(get_current_user)):
