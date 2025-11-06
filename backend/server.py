@@ -412,10 +412,14 @@ async def login(credentials: UserLogin):
     if not user_doc or not verify_password(credentials.password, user_doc.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     
+    # Check if user is active
+    if user_doc.get("status") != "active":
+        raise HTTPException(status_code=403, detail="Account is inactive or suspended")
+    
     user = User(**{k: v for k, v in user_doc.items() if k != "password_hash"})
     
     access_token = create_access_token(
-        data={"sub": user.id},
+        data={"sub": user.id, "role": user.role},
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     
