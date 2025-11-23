@@ -6,6 +6,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
+from tempfile import gettempdir
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from typing import List, Optional, Dict, Any
 import uuid
@@ -15,6 +16,12 @@ import jwt
 import requests
 import json
 from openai import OpenAI
+import re
+from jsonschema import ValidationError
+from openai_utils import parse_and_validate_analysis
+import aiofiles
+import httpx
+import asyncio
 from rbac import Role, Permission, has_permission, require_role, get_role_permissions
 from audit_service import AuditService
 from transcript_service import TranscriptService
@@ -98,6 +105,7 @@ class Script(BaseModel):
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     usage_count: int = 0
     avg_score: float = 0.0
+    total_score_sum: float = 0.0
 
 class ScriptCreate(BaseModel):
     title: str
@@ -180,52 +188,101 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         raise HTTPException(status_code=401, detail="User not found")
     return User(**user)
 
-# AssemblyAI transcription
-async def transcribe_audio_assemblyai(audio_url: str) -> dict:
+# AssemblyAI transcription (async)
+async def transcribe_audio_assemblyai(audio_path: str) -> dict:
+    """
+    Uploads the local audio file to AssemblyAI and polls for the transcription result.
+    Uses async httpx and aiofiles to avoid blocking the event loop.
+    """
+    if not ASSEMBLYAI_API_KEY:
+        raise HTTPException(status_code=500, detail="AssemblyAI API key not configured")
+
     headers = {"authorization": ASSEMBLYAI_API_KEY}
-    
-    # Upload file
-    upload_response = requests.post(
-        "https://api.assemblyai.com/v2/upload",
-        headers=headers,
-        data=open(audio_url, "rb") if os.path.exists(audio_url) else None
-    )
-    
-    if upload_response.status_code != 200:
-        raise HTTPException(status_code=500, detail="Failed to upload audio to AssemblyAI")
-    
-    audio_upload_url = upload_response.json()["upload_url"]
-    
-    # Request transcription
-    transcript_request = {
-        "audio_url": audio_upload_url,
-        "speaker_labels": True
-    }
-    
-    transcript_response = requests.post(
-        "https://api.assemblyai.com/v2/transcript",
-        json=transcript_request,
-        headers=headers
-    )
-    
-    transcript_id = transcript_response.json()["id"]
-    
-    # Poll for completion
-    import time
-    while True:
-        transcript_result = requests.get(
-            f"https://api.assemblyai.com/v2/transcript/{transcript_id}",
-            headers=headers
-        )
-        
-        result = transcript_result.json()
-        
-        if result["status"] == "completed":
-            return result
-        elif result["status"] == "error":
-            raise HTTPException(status_code=500, detail="Transcription failed")
-        
-        time.sleep(3)
+
+    if not os.path.exists(audio_path):
+        raise HTTPException(status_code=400, detail="Audio file not found for transcription")
+
+    # Read file asynchronously
+    try:
+        async with aiofiles.open(audio_path, "rb") as f:
+            file_bytes = await f.read()
+    except Exception as e:
+        logging.error(f"Failed to read audio file: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to read audio file")
+
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        # Upload file
+        try:
+            upload_resp = await client.post(
+                "https://api.assemblyai.com/v2/upload",
+                headers=headers,
+                content=file_bytes
+            )
+        except httpx.HTTPError as e:
+            logging.error(f"AssemblyAI upload error: {str(e)}")
+            raise HTTPException(status_code=502, detail="Failed to upload audio to AssemblyAI")
+
+        if upload_resp.status_code not in (200, 201):
+            logging.error(f"AssemblyAI upload failed: {upload_resp.status_code} {upload_resp.text}")
+            raise HTTPException(status_code=502, detail="Failed to upload audio to AssemblyAI")
+
+        audio_upload_url = upload_resp.json().get("upload_url")
+        if not audio_upload_url:
+            logging.error(f"AssemblyAI upload missing URL: {upload_resp.text}")
+            raise HTTPException(status_code=502, detail="AssemblyAI did not return upload URL")
+
+        # Request transcription
+        transcript_request = {
+            "audio_url": audio_upload_url,
+            "speaker_labels": True
+        }
+
+        try:
+            transcript_resp = await client.post(
+                "https://api.assemblyai.com/v2/transcript",
+                headers={**headers, "content-type": "application/json"},
+                json=transcript_request,
+                timeout=30.0
+            )
+        except httpx.HTTPError as e:
+            logging.error(f"AssemblyAI transcript request error: {str(e)}")
+            raise HTTPException(status_code=502, detail="Failed to request transcription")
+
+        if transcript_resp.status_code not in (200, 201):
+            logging.error(f"AssemblyAI transcript request failed: {transcript_resp.status_code} {transcript_resp.text}")
+            raise HTTPException(status_code=502, detail="Transcription request failed")
+
+        transcript_id = transcript_resp.json().get("id")
+        if not transcript_id:
+            logging.error(f"AssemblyAI transcript response missing id: {transcript_resp.text}")
+            raise HTTPException(status_code=502, detail="Transcription request returned no id")
+
+        # Poll for completion
+        poll_url = f"https://api.assemblyai.com/v2/transcript/{transcript_id}"
+        for _ in range(120):  # poll up to ~6 minutes (120 * 3s)
+            try:
+                result_resp = await client.get(poll_url, headers=headers, timeout=30.0)
+            except httpx.HTTPError as e:
+                logging.warning(f"AssemblyAI poll error: {str(e)}")
+                await asyncio.sleep(3)
+                continue
+
+            if result_resp.status_code != 200:
+                logging.warning(f"AssemblyAI poll bad status: {result_resp.status_code}")
+                await asyncio.sleep(3)
+                continue
+
+            result = result_resp.json()
+            status = result.get("status")
+            if status == "completed":
+                return result
+            if status == "error":
+                logging.error(f"AssemblyAI transcription error: {result}")
+                raise HTTPException(status_code=500, detail="Transcription failed")
+
+            await asyncio.sleep(3)
+
+    raise HTTPException(status_code=504, detail="Transcription timed out")
 
 # OpenAI analysis with comprehensive system role
 async def analyze_transcript(transcript: str, script: Script, agent_number: str, customer_number: str, call_date: datetime) -> dict:
@@ -325,17 +382,53 @@ Analyze this call and provide the structured JSON output as specified in the sys
 """
     
     try:
-        response = openai_client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.3
-        )
-        
-        analysis = json.loads(response.choices[0].message.content)
+        # The OpenAI client used here may be synchronous; run it in a thread to avoid blocking the event loop.
+        def sync_call():
+            return openai_client.chat.completions.create(
+                model=os.environ.get('OPENAI_MODEL', 'gpt-4o'),
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.3
+            )
+
+        response = await asyncio.to_thread(sync_call)
+
+        # Response shape may vary depending on SDK; try to extract text safely
+        content = None
+        try:
+            # Try common nested attributes
+            content = getattr(response, 'choices', None)
+            if content:
+                # If it's a list-like object, attempt to get text
+                choice = response.choices[0]
+                # Different SDKs use 'message' or 'text'
+                if hasattr(choice, 'message') and hasattr(choice.message, 'content'):
+                    raw = choice.message.content
+                else:
+                    raw = getattr(choice, 'text', None)
+            else:
+                raw = getattr(response, 'text', None) or json.dumps(response)
+        except Exception:
+            raw = getattr(response, 'text', None) or json.dumps(response)
+
+        if raw is None:
+            logging.error(f"OpenAI response missing content: {response}")
+            raise HTTPException(status_code=500, detail="OpenAI returned empty response")
+
+        # Parse and validate the model output using helper
+        context = {
+            "agent_number": agent_number,
+            "customer_number": customer_number,
+            "call_date": call_date.isoformat()
+        }
+
+        analysis, parsed, validation_errors = parse_and_validate_analysis(raw, context=context)
+
+        if not parsed:
+            logging.warning(f"OpenAI analysis parsed but validation failed: {validation_errors}")
+
         return analysis
     except Exception as e:
         logging.error(f"OpenAI analysis error: {str(e)}")
@@ -358,28 +451,40 @@ async def process_audio_audit(audit_id: str, audio_path: str, script: Script, ag
         analysis = await analyze_transcript(transcript, script, agent_number, customer_number, call_date)
         
         # Update audit record
+        status_to_set = "completed"
         update_data = {
             "transcript": transcript,
             "analysis": analysis,
             "overall_score": analysis.get("overall_score", 0),
-            "status": "completed",
             "processed_at": datetime.now(timezone.utc).isoformat()
         }
+
+        # If analysis parser indicated issues, persist warnings and mark accordingly
+        if isinstance(analysis, dict) and analysis.get("_parsed") is False:
+            status_to_set = "completed_with_warnings"
+            update_data["processing_warnings"] = analysis.get("_validation_errors", [])
+
+        update_data["status"] = status_to_set
         
         await db.audio_audits.update_one(
             {"id": audit_id},
             {"$set": update_data}
         )
         
-        # Update script analytics
+        # Update script analytics using atomic aggregation pipeline to maintain running average
+        try:
+            score_val = float(analysis.get("overall_score", 0) or 0.0)
+        except Exception:
+            score_val = 0.0
+
+        # Use aggregation-update pipeline to increment usage_count, add to total_score_sum and recompute avg
         await db.scripts.update_one(
             {"id": script.id},
-            {
-                "$inc": {"usage_count": 1},
-                "$set": {
-                    "avg_score": analysis.get("overall_score", 0)  # Simplified, should calculate average
-                }
-            }
+            [
+                {"$set": {"usage_count": {"$add": [{"$ifNull": ["$usage_count", 0]}, 1]}}},
+                {"$set": {"total_score_sum": {"$add": [{"$ifNull": ["$total_score_sum", 0]}, score_val]}}},
+                {"$set": {"avg_score": {"$cond": [{"$gt": ["$usage_count", 0]}, {"$divide": ["$total_score_sum", "$usage_count"]}, 0]}}}
+            ]
         )
         
     except Exception as e:
@@ -520,15 +625,26 @@ async def upload_audio(
         raise HTTPException(status_code=404, detail="Script not found")
     
     # Save audio file
-    upload_dir = Path("/tmp/audio_uploads")
-    upload_dir.mkdir(exist_ok=True)
-    
+    # Determine upload directory (configurable and cross-platform)
+    upload_dir_env = os.environ.get("AUDIO_UPLOAD_DIR")
+    if upload_dir_env:
+        upload_dir = Path(upload_dir_env)
+    else:
+        upload_dir = Path(gettempdir()) / "tele_audits"
+
+    upload_dir.mkdir(parents=True, exist_ok=True)
+
     audio_filename = f"{uuid.uuid4()}_{audio_file.filename}"
     audio_path = upload_dir / audio_filename
-    
-    with open(audio_path, "wb") as f:
+
+    # Write file asynchronously to avoid blocking event loop
+    try:
         content = await audio_file.read()
-        f.write(content)
+        async with aiofiles.open(audio_path, "wb") as f:
+            await f.write(content)
+    except Exception as e:
+        logging.error(f"Failed to save uploaded audio: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to save uploaded audio")
     
     # Create audit record
     audit = AudioAudit(
